@@ -6,3 +6,7 @@ data/raw/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_
 data/raw/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_points_shp.shx
 data/raw/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_points_shp/Readme.txt
 notebooks/_data/.DS_Store
+.DS_Store
+.vscode/settings.json
+backend/.DS_Store
+data/.DS_Store
