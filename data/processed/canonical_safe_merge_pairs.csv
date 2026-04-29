@@ -1,0 +1,5 @@
+poi_id_1,name_1,name_en_1,category_1,poi_id_2,name_2,name_en_2,category_2,cluster_id,distance_km,root_overlap_score,same_category,importance_1,importance_2,group_decision,group_type,family_name,entity_name,notes
+247442912,Masumiyet Müzesi,,museum,3279398393,Masumiyet Müzesi,The Museum of Innocence,museum,12,0.0037996722087939,1.0,1,0.6940323660602588,0.6940253995863866,,,,,
+499944905,Atik Ali Paşa Medresesi,,historic,3374681017,Atik Ali Paşa Medresesi,,historic,12,0.008571033948971,1.0,1,0.6945780725228948,0.6872196114313097,,,,,
+1555271,Ayasofya-i Kebir Câmi-i Şerifi,,museum,109862851,Ayasofya-i Kebir Câmi-i Şerifi,Hagia Sophia,attraction,12,0.0124595743652894,1.0,0,0.7681835752931446,0.747139150398643,,,,,
+1184924695,Yerebatan Sarnıcı,,historic,11006008339,Yerebatan Sarnıcı,Basilica Cistern (Exit),attraction,12,0.075361445866491,1.0,0,0.7850238528242527,0.7695882352941177,,,,,

@@ -1,0 +1,151 @@
+poi_id,canonical_poi_id,canonical_name,family_name,category_clean,cluster_id,importance_score,member_role,group_method,canonical_seed_name
+13615790287,cp_13615790287,Lausos Sarayı'nın Kalıntıları,Lausos Sarayı'nın Kalıntıları,historic,12,0.8630041366163068,primary,single_seed,Lausos Sarayı'nın Kalıntıları
+1075801479,cp_1075801479,Antiochos Sarayı'nın Kalıntıları,Antiochos Sarayı'nın Kalıntıları,historic,12,0.8592239579009757,primary,single_seed,Antiochos Sarayı'nın Kalıntıları
+8120955,cp_8120955,Ibrahim Pasha Palace,Ibrahim Pasha Palace,historic,12,0.8589147224356382,primary,single_seed,Ibrahim Pasha Palace
+311681431,cp_311681431,Sağlık Müzesi,Sağlık Müzesi,museum,12,0.8493101502132174,primary,single_seed,Sağlık Müzesi
+1153966162,cp_1153966162,Great Palace Mosaic Museum,Great Palace Mosaic Museum,museum,12,0.8442127747511758,primary,single_seed,Great Palace Mosaic Museum
+103953125,cp_103953125,Tomb of Sultan Ahmed I,Tomb of Sultan Ahmed I,attraction,12,0.8358979261397337,primary,single_seed,Tomb of Sultan Ahmed I
+11867279469,cp_11867279469,Hagia Sophia History and Experience Museum,Hagia Sophia History and Experience Museum,museum,12,0.8343905890613934,primary,single_seed,Hagia Sophia History and Experience Museum
+5113500256,cp_5113500256,Turkish and Islamic Arts Museum,Turkish and Islamic Arts Museum,museum,12,0.8342378630190977,primary,single_seed,Turkish and Islamic Arts Museum
+3373094254,cp_3373094254,Carpet Museum,Carpet Museum,museum,12,0.827179907345949,primary,single_seed,Carpet Museum
+527580309,cp_527580309,Turbe of Keçecizâde Fuad Pasha,Turbe of Keçecizâde Fuad Pasha,historic,12,0.8210574583077491,primary,single_seed,Turbe of Keçecizâde Fuad Pasha
+1652694014,cp_1652694014,Magnaura Sarayı,Magnaura Sarayı,historic,12,0.8186124245073092,primary,single_seed,Magnaura Sarayı
+10284696709,cp_10284696709,Topkapi Palace,Topkapi Palace,museum,12,0.8121438111452497,primary,single_seed,Topkapi Palace
+149049165,cp_149049165,Archeological Park,Archeological Park,historic,12,0.8117358459579099,primary,single_seed,Archeological Park
+18055570,cp_18055570,Blue Mosque,Blue Mosque,attraction,12,0.8079814929979688,primary,single_seed,Blue Mosque
+132277807,cp_132277807,Mausoleum of Princes,Mausoleum of Princes,historic,12,0.8078603320712782,primary,single_seed,Mausoleum of Princes
+5244801843,cp_5244801843,Marmara Üniversitesi Cumhuriyet Müzesi ve Sanat Galerisi,Marmara Üniversitesi Cumhuriyet Müzesi ve Sanat Galerisi,museum,12,0.8044155331141827,primary,single_seed,Marmara Üniversitesi Cumhuriyet Müzesi ve Sanat Galerisi
+2472730735,cp_2472730735,Cistern of Philoxenos,Cistern of Philoxenos,museum,12,0.8041686522513595,primary,single_seed,Cistern of Philoxenos
+109836395,cp_109836395,Mausoleum of Sultan Murad III,Mausoleum of Sultan Murad III,historic,12,0.8041543523982415,primary,single_seed,Mausoleum of Sultan Murad III
+5113620677,cp_5113620677,Sahabe-i Kiramdan Abdurrahman Şami Türbesi,Sahabe-i Kiramdan Abdurrahman Şami Türbesi,historic,12,0.8038441577882711,primary,single_seed,Sahabe-i Kiramdan Abdurrahman Şami Türbesi
+4990028128,cp_4990028128,Carpet Museum,Carpet Museum,museum,12,0.8016571339753846,primary,single_seed,Carpet Museum
+709381141,cp_709381141,Mausoleum of Sultan Selim II,Mausoleum of Sultan Selim II,historic,12,0.8004027259690221,primary,single_seed,Mausoleum of Sultan Selim II
+109836394,cp_109836394,Mausoleum of Sultan Mehmed III,Mausoleum of Sultan Mehmed III,historic,12,0.8003294918903925,primary,single_seed,Mausoleum of Sultan Mehmed III
+329062194,cp_329062194,Mausoleum of Sultan Mahmud II,Mausoleum of Sultan Mahmud II,historic,12,0.7990432221724273,primary,single_seed,Mausoleum of Sultan Mahmud II
+4742554,cp_4742554,Hagia Irene,Hagia Irene,museum,12,0.7976237111379257,primary,single_seed,Hagia Irene
+1908677124,cp_1908677124,Milion,Milion,historic,12,0.7962789879589164,primary,single_seed,Milion
+103953128,cp_103953128,Sultan Ahmed Madrasah,Sultan Ahmed Madrasah,historic,12,0.7956527541776205,primary,single_seed,Sultan Ahmed Madrasah
+13385771384,cp_13385771384,II. Abdülhamid Türbesi,II. Abdülhamid Türbesi,historic,12,0.7953630943761127,primary,single_seed,II. Abdülhamid Türbesi
+335374188,cp_335374188,İstanbul Arkeoloji Müzeleri,İstanbul Arkeoloji Müzeleri,museum,12,0.7934602030966318,primary,single_seed,İstanbul Arkeoloji Müzeleri
+319020883,cp_319020883,Istanbul Archaeological Museum,Istanbul Archaeological Museum,museum,12,0.7934516853177431,primary,single_seed,Istanbul Archaeological Museum
+5244801844,cp_5244801844,İstanbul Cumhuriyet Eğitim Müzesi,İstanbul Cumhuriyet Eğitim Müzesi,museum,12,0.7932227132852074,primary,single_seed,İstanbul Cumhuriyet Eğitim Müzesi
+5244807623,cp_5244807623,TGC Press Media Museum,TGC Press Media Museum,museum,12,0.7932208519105401,primary,single_seed,TGC Press Media Museum
+109874498,cp_109874498,German Fountain,German Fountain,attraction,12,0.7910746890319853,primary,single_seed,German Fountain
+103339340,cp_103339340,Museum Of Ancient Orient,Museum Of Ancient Orient,museum,12,0.7900084947275234,primary,single_seed,Museum Of Ancient Orient
+4742207,cp_4742207,Marmara University Republic Museum,Marmara University Republic Museum,museum,12,0.7895549811324903,primary,single_seed,Marmara University Republic Museum
+13702456359,cp_13702456359,Fulham Park Cistern,Fulham Park Cistern,attraction,12,0.7892536763603326,primary,single_seed,Fulham Park Cistern
+1120852417,cp_1120852417,Obelisk of Theodosius,Obelisk of Theodosius,historic,12,0.787757479192329,primary,single_seed,Obelisk of Theodosius
+1184924695,cp_1184924695,Yerebatan Sarnıcı,Yerebatan Sarnıcı,historic,12,0.7850238528242527,primary,auto_grouped,Yerebatan Sarnıcı
+5108843098,cp_5108843098,Cevri Kalfa Çeşmesi,Cevri Kalfa Çeşmesi,attraction,12,0.7839032672595759,primary,single_seed,Cevri Kalfa Çeşmesi
+1154702450,cp_1154702450,Theodosia Cistern,Theodosia Cistern,museum,12,0.781489165166183,primary,single_seed,Theodosia Cistern
+1379168992,cp_1379168992,Katip Sinan Camii,Katip Sinan Camii,historic,12,0.778294096320328,primary,single_seed,Katip Sinan Camii
+5108843109,cp_5108843109,Hacı Beşir Ağa Çeşmesi,Hacı Beşir Ağa Çeşmesi,attraction,12,0.7769251346262946,primary,single_seed,Hacı Beşir Ağa Çeşmesi
+25512790,cp_25512790,Sultan Ahmed Square,Sultan Ahmed Square,attraction,12,0.7760674446106873,primary,single_seed,Sultan Ahmed Square
+1272157516,cp_1272157516,SARNIÇ CISTERN,SARNIÇ CISTERN,historic,12,0.7733860370374873,primary,single_seed,SARNIÇ CISTERN
+1120852418,cp_1120852418,The Walled Obelisk,The Walled Obelisk,historic,12,0.7727815775079241,primary,single_seed,The Walled Obelisk
+1377906859,cp_1377906859,Üçler Mescidi,Üçler Mescidi,historic,12,0.7727022688342846,primary,single_seed,Üçler Mescidi
+11006008339,cp_1184924695,Yerebatan Sarnıcı,Yerebatan Sarnıcı,attraction,12,0.7695882352941177,member,auto_grouped,Basilica Cistern (Exit)
+415157636,cp_415157636,Serpent Column,Serpent Column,attraction,12,0.7682667963065052,primary,single_seed,Serpent Column
+1555271,cp_1555271,Ayasofya-i Kebir Câmi-i Şerifi,Ayasofya-i Kebir Câmi-i Şerifi,museum,12,0.7681835752931446,primary,auto_grouped,Ayasofya-i Kebir Câmi-i Şerifi
+32396096,cp_32396096,Palace Kitchens,Palace Kitchens,historic,12,0.7659919119617264,primary,single_seed,Palace Kitchens
+303491953,cp_303491953,Alay Köşkü,Alay Köşkü,museum,12,0.7638168462617234,primary,single_seed,Alay Köşkü
+109738926,cp_109738926,Sıbyan Mektebi,Sıbyan Mektebi,historic,12,0.7630982709605257,primary,single_seed,Sıbyan Mektebi
+335415778,cp_335415778,Topkapı Palace,Topkapı Palace,attraction,12,0.7611404168876338,primary,single_seed,Topkapı Palace
+151790453,cp_151790453,Haseki Hürrem Hammam,Haseki Hürrem Hammam,attraction,12,0.7581456549893157,primary,single_seed,Haseki Hürrem Hammam
+13385771382,cp_13385771382,Sultan Abdulaziz Han kabri,Sultan Abdulaziz Han kabri,historic,12,0.7578610436970555,primary,single_seed,Sultan Abdulaziz Han kabri
+5113620695,cp_5113620695,Museum of The History of Science and Technology in Islam,Museum of The History of Science and Technology in Islam,museum,12,0.7563119477270756,primary,single_seed,Museum of The History of Science and Technology in Islam
+103339339,cp_103339339,Tiled Kiosk,Tiled Kiosk,museum,12,0.7521652419571724,primary,single_seed,Tiled Kiosk
+109862851,cp_1555271,Ayasofya-i Kebir Câmi-i Şerifi,Ayasofya-i Kebir Câmi-i Şerifi,attraction,12,0.747139150398643,member,auto_grouped,Hagia Sophia
+175523076,cp_175523076,National Palaces Painting Museum;Painting Museum,National Palaces Painting Museum;Painting Museum,museum,12,0.7465348215489771,primary,single_seed,National Palaces Painting Museum;Painting Museum
+263949137,cp_263949137,Dolmabahce Palace,Dolmabahce Palace,museum,12,0.7443358151610736,primary,single_seed,Dolmabahce Palace
+914394417,cp_914394417,Clock Museum,Clock Museum,museum,12,0.7442553795490467,primary,single_seed,Clock Museum
+263949162,cp_263949162,Dolmabahce Palace,Dolmabahce Palace,museum,12,0.7410476197863717,primary,single_seed,Dolmabahce Palace
+335402651,cp_335402651,Imperial Mint,Imperial Mint,attraction,12,0.7392074976874566,primary,single_seed,Imperial Mint
+175516451,cp_175516451,Dolmabahce Palace,Dolmabahce Palace,museum,12,0.737641460823832,primary,single_seed,Dolmabahce Palace
+1184851395,cp_1184851395,Bucoleon Palace Ruins,Bucoleon Palace Ruins,historic,12,0.7364798790603897,primary,single_seed,Bucoleon Palace Ruins
+5108838368,cp_5108838368,Paşa Kapısı,Paşa Kapısı,attraction,12,0.7354163109964827,primary,single_seed,Paşa Kapısı
+6180706492,cp_6180706492,Palace Collections Museum,Palace Collections Museum,museum,12,0.7347501098898078,primary,single_seed,Palace Collections Museum
+335364925,cp_335364925,Imperial Gate,Imperial Gate,historic,12,0.7329518756199614,primary,single_seed,Imperial Gate
+335402649,cp_335402649,Gate of Salutation,Gate of Salutation,historic,12,0.7319443322385596,primary,single_seed,Gate of Salutation
+3281285898,cp_3281285898,Atatürk,Atatürk,historic,12,0.7317374476432082,primary,single_seed,Atatürk
+4721808990,cp_4721808990,Grand Bazaar,Grand Bazaar,museum,12,0.7300729005006088,primary,single_seed,Grand Bazaar
+111862615,cp_111862615,Vezir Hanı,Vezir Hanı,museum,12,0.7298805790426722,primary,single_seed,Vezir Hanı
+1271934199,cp_1271934199,Dolmabahçe Sarayı Saltanat Kapı,Dolmabahçe Sarayı Saltanat Kapı,historic,12,0.7286787517548909,primary,single_seed,Dolmabahçe Sarayı Saltanat Kapı
+13084855510,cp_13084855510,Dolmabahçe Sarayı Deniz Kapısı,Dolmabahçe Sarayı Deniz Kapısı,historic,12,0.7284865118906544,primary,single_seed,Dolmabahçe Sarayı Deniz Kapısı
+32396432,cp_32396432,Sultan Ahmed III Fountain,Sultan Ahmed III Fountain,attraction,12,0.7283870411993926,primary,single_seed,Sultan Ahmed III Fountain
+103907772,cp_103907772,Imperial Council Hall,Imperial Council Hall,historic,12,0.7242256908054279,primary,single_seed,Imperial Council Hall
+3281285899,cp_3281285899,Mithat Paşa,Mithat Paşa,historic,12,0.7206554939357813,primary,single_seed,Mithat Paşa
+4743322,cp_4743322,Imperial Harem,Imperial Harem,historic,12,0.720411605205976,primary,single_seed,Imperial Harem
+329063100,cp_329063100,Tomb of Sinan Pasha,Tomb of Sinan Pasha,historic,12,0.7169761839515824,primary,single_seed,Tomb of Sinan Pasha
+663391267,cp_663391267,Çemberlitaş Hammam,Çemberlitaş Hammam,attraction,12,0.7161590038471818,primary,single_seed,Çemberlitaş Hammam
+111002508,cp_111002508,Gazi Atik Ali Paşa Camii,Gazi Atik Ali Paşa Camii,historic,12,0.715883033994211,primary,single_seed,Gazi Atik Ali Paşa Camii
+5244807883,cp_5244807883,Yahya Kemal Museum,Yahya Kemal Museum,museum,12,0.7146092979466501,primary,single_seed,Yahya Kemal Museum
+586013144,cp_586013144,Domabahçe Sarayı Mefruşat Dairesi,Domabahçe Sarayı Mefruşat Dairesi,historic,12,0.7143494095438884,primary,single_seed,Domabahçe Sarayı Mefruşat Dairesi
+11813287018,cp_11813287018,Sohum Kalesi Kitâbesi,Sohum Kalesi Kitâbesi,historic,12,0.7131131374033745,primary,single_seed,Sohum Kalesi Kitâbesi
+5478162925,cp_5478162925,Sarayburnu Atatürk Monument,Sarayburnu Atatürk Monument,historic,12,0.7128245704924515,primary,single_seed,Sarayburnu Atatürk Monument
+5244805876,cp_5244805876,Pera Spa,Pera Spa,attraction,12,0.7126906286066466,primary,single_seed,Pera Spa
+1153684927,cp_1153684927,Column of Constantine,Column of Constantine,attraction,12,0.7123782383664277,primary,single_seed,Column of Constantine
+1488385517,cp_1488385517,Sarayburnu Arkeopark,Sarayburnu Arkeopark,historic,12,0.7114292675061363,primary,single_seed,Sarayburnu Arkeopark
+330344403,cp_330344403,İshakpaşa Hammam,İshakpaşa Hammam,historic,12,0.710768405013746,primary,single_seed,İshakpaşa Hammam
+1900616737,cp_1900616737,Ancient Hippodrome Substructure,Ancient Hippodrome Substructure,historic,12,0.70959000807894,primary,single_seed,Ancient Hippodrome Substructure
+9393008312,cp_9393008312,Cistern Nakkas,Cistern Nakkas,attraction,12,0.7089472486292503,primary,single_seed,Cistern Nakkas
+103907804,cp_103907804,Has Oda Koğuşu,Has Oda Koğuşu,historic,12,0.7054518216883723,primary,single_seed,Has Oda Koğuşu
+303807317,cp_303807317,Grand Bazaar,Grand Bazaar,attraction,12,0.7047920305094901,primary,single_seed,Grand Bazaar
+263956600,cp_263956600,Dolmabahçe Sarayı Hazine-i Hassa Dairesi,Dolmabahçe Sarayı Hazine-i Hassa Dairesi,historic,12,0.7035369557659662,primary,single_seed,Dolmabahçe Sarayı Hazine-i Hassa Dairesi
+1377852887,cp_1377852887,Cankurtaran Mescidi,Cankurtaran Mescidi,historic,12,0.7029805333333065,primary,single_seed,Cankurtaran Mescidi
+110313596,cp_110313596,Şehzade Mehmet Kervansarayı,Şehzade Mehmet Kervansarayı,historic,12,0.7028605861821408,primary,single_seed,Şehzade Mehmet Kervansarayı
+5244807872,cp_5244807872,Karababa Türbesi,Karababa Türbesi,historic,12,0.7024260330596697,primary,single_seed,Karababa Türbesi
+32396111,cp_32396111,Gate of Felicity,Gate of Felicity,historic,12,0.7019385031028059,primary,single_seed,Gate of Felicity
+103907818,cp_103907818,Audience Chamber,Audience Chamber,historic,12,0.7018679427006379,primary,single_seed,Audience Chamber
+32396231,cp_32396231,Library of Ahmed III,Library of Ahmed III,historic,12,0.7017871550030382,primary,single_seed,Library of Ahmed III
+5108828680,cp_5108828680,İstanbul Railway Museum,İstanbul Railway Museum,museum,12,0.7003234796326764,primary,single_seed,İstanbul Railway Museum
+175517661,cp_175517661,Mahmut Paşa Camii,Mahmut Paşa Camii,attraction,12,0.7001537174702,primary,single_seed,Mahmut Paşa Camii
+1423624915,cp_1423624915,Dolmabahçe Sarayı Hazine Kapısı,Dolmabahçe Sarayı Hazine Kapısı,historic,12,0.6998066330798159,primary,single_seed,Dolmabahçe Sarayı Hazine Kapısı
+3386270532,cp_3386270532,Galatasaray Museum,Galatasaray Museum,museum,12,0.6995585914852167,primary,single_seed,Galatasaray Museum
+165718178,cp_165718178,Galata Dervish House Museum,Galata Dervish House Museum,museum,12,0.6988050873461953,primary,single_seed,Galata Dervish House Museum
+3811143694,cp_3811143694,Stucco Museum,Stucco Museum,museum,12,0.6982316747976496,primary,single_seed,Stucco Museum
+969327995,cp_969327995,Yerevan Kiosk,Yerevan Kiosk,historic,12,0.6978588286277544,primary,single_seed,Yerevan Kiosk
+9206305917,cp_9206305917,Beyazit Kulesi,Beyazit Kulesi,historic,12,0.6976158241870705,primary,single_seed,Beyazit Kulesi
+5108828006,cp_5108828006,Lions Rug and kilims Art Gallery,Lions Rug and kilims Art Gallery,museum,12,0.6968946024087085,primary,single_seed,Lions Rug and kilims Art Gallery
+499944905,cp_499944905,Atik Ali Paşa Medresesi,Atik Ali Paşa Medresesi,historic,12,0.6945780725228948,primary,auto_grouped,Atik Ali Paşa Medresesi
+5108836360,cp_5108836360,Sultan Spa and Wellness Center,Sultan Spa and Wellness Center,attraction,12,0.6944645467474884,primary,single_seed,Sultan Spa and Wellness Center
+247442912,cp_247442912,Masumiyet Müzesi,Masumiyet Müzesi,museum,12,0.6940323660602588,primary,auto_grouped,Masumiyet Müzesi
+3279398393,cp_247442912,Masumiyet Müzesi,Masumiyet Müzesi,museum,12,0.6940253995863866,member,auto_grouped,The Museum of Innocence
+2996272,cp_2996272,Agavat Dairesi (Deniz Müzesi K. Tarih Arşivi),Agavat Dairesi (Deniz Müzesi K. Tarih Arşivi),historic,12,0.6937651765556849,primary,single_seed,Agavat Dairesi (Deniz Müzesi K. Tarih Arşivi)
+8699169212,cp_8699169212,Post Museum,Post Museum,museum,12,0.6928778912029718,primary,single_seed,Post Museum
+569707977,cp_569707977,Cat Museum,Cat Museum,museum,12,0.6920423259915169,primary,single_seed,Cat Museum
+32396296,cp_32396296,Baghdad Kiosk,Baghdad Kiosk,historic,12,0.6904149314171952,primary,single_seed,Baghdad Kiosk
+194486642,cp_194486642,Sofa Pavilion,Sofa Pavilion,historic,12,0.6904057022331407,primary,single_seed,Sofa Pavilion
+1807703751,cp_1807703751,Istanbul Photography Museum,Istanbul Photography Museum,museum,12,0.6886192156294152,primary,single_seed,Istanbul Photography Museum
+260976707,cp_260976707,İşbank Museum,İşbank Museum,museum,12,0.6885229138186916,primary,single_seed,İşbank Museum
+3374681017,cp_499944905,Atik Ali Paşa Medresesi,Atik Ali Paşa Medresesi,historic,12,0.6872196114313097,member,auto_grouped,Atik Ali Paşa Medresesi
+13385771381,cp_13385771381,Tomb of Mehmed the Hunter,Tomb of Mehmed the Hunter,historic,12,0.6867526648720581,primary,single_seed,Tomb of Mehmed the Hunter
+1620494633,cp_1620494633,Tomb of Hatice Turhan Sultan,Tomb of Hatice Turhan Sultan,historic,12,0.6867309156333706,primary,single_seed,Tomb of Hatice Turhan Sultan
+13385771383,cp_13385771383,V. Murat Türbesi,V. Murat Türbesi,historic,12,0.6867189612860543,primary,single_seed,V. Murat Türbesi
+18161438,cp_18161438,Nuruosmaniye Mosque,Nuruosmaniye Mosque,attraction,12,0.6866720712613593,primary,single_seed,Nuruosmaniye Mosque
+3400112453,cp_3400112453,Yedi Kule Hisarı Müzesi,Yedi Kule Hisarı Müzesi,museum,17,0.6832955060354509,primary,single_seed,Yedi Kule Hisarı Müzesi
+32396254,cp_32396254,Grand Kiosk,Grand Kiosk,historic,12,0.6829485914539596,primary,single_seed,Grand Kiosk
+1272160893,cp_1272160893,Gülhane Kapısı,Gülhane Kapısı,historic,12,0.6828882476466029,primary,single_seed,Gülhane Kapısı
+9597969110,cp_9597969110,Illusion Museum,Illusion Museum,museum,12,0.679951517534487,primary,single_seed,Illusion Museum
+1335767641,cp_1335767641,Tekfur Sarayı Müzesi,Tekfur Sarayı Müzesi,museum,12,0.6795718201314302,primary,single_seed,Tekfur Sarayı Müzesi
+23236783,cp_23236783,Galata Tower,Galata Tower,attraction,12,0.6791555268577218,primary,single_seed,Galata Tower
+5506396363,cp_5506396363,The Jewish Museum of Turkey,The Jewish Museum of Turkey,museum,12,0.6771078797658847,primary,single_seed,The Jewish Museum of Turkey
+112174319,cp_112174319,Sepetçiler Pavilion,Sepetçiler Pavilion,museum,12,0.6769751517558428,primary,single_seed,Sepetçiler Pavilion
+110234148,cp_110234148,The Museum of Turkish Calligraphic Art,The Museum of Turkish Calligraphic Art,museum,12,0.6764537022502073,primary,single_seed,The Museum of Turkish Calligraphic Art
+9217070484,cp_9217070484,Türk Eczacılık Tarihi İhtisas Müzesi,Türk Eczacılık Tarihi İhtisas Müzesi,museum,12,0.6763581106854699,primary,single_seed,Türk Eczacılık Tarihi İhtisas Müzesi
+333112194,cp_333112194,Sultan 1. Abdülhamit Türbesi,Sultan 1. Abdülhamit Türbesi,historic,12,0.6762663213923491,primary,single_seed,Sultan 1. Abdülhamit Türbesi
+776287486,cp_776287486,Otluk Kapısı,Otluk Kapısı,historic,12,0.6734106155233212,primary,single_seed,Otluk Kapısı
+13357454623,cp_13357454623,Nimelceyş Kabiri,Nimelceyş Kabiri,historic,12,0.6734037956995331,primary,single_seed,Nimelceyş Kabiri
+13357454625,cp_13357454625,Bizans Lahdi,Bizans Lahdi,historic,12,0.6733065064221869,primary,single_seed,Bizans Lahdi
+498861869,cp_498861869,Naval Museum,Naval Museum,museum,12,0.6728172297152518,primary,single_seed,Naval Museum
+3374678647,cp_3374678647,Koca Sinan Paşa Külliyesi,Koca Sinan Paşa Külliyesi,historic,12,0.6722247030540077,primary,single_seed,Koca Sinan Paşa Külliyesi
+3374678648,cp_3374678648,Kara Mustafa Paşa Külliyesi,Kara Mustafa Paşa Külliyesi,historic,12,0.6718308526207518,primary,single_seed,Kara Mustafa Paşa Külliyesi
+12248507560,cp_12248507560,Dolmabahçe Clock Museum,Dolmabahçe Clock Museum,museum,12,0.6717003774745904,primary,single_seed,Dolmabahçe Clock Museum
+225470886,cp_225470886,Yeni Daire,Yeni Daire,historic,12,0.6712048601320623,primary,single_seed,Yeni Daire
+326370631,cp_326370631,Saray Tiyatrosu ve Sahne Sanatları Müzesi,Saray Tiyatrosu ve Sahne Sanatları Müzesi,museum,10,0.6711540069592334,primary,single_seed,Saray Tiyatrosu ve Sahne Sanatları Müzesi
+175518810,cp_175518810,Elvis Müzik,Elvis Müzik,attraction,12,0.6703840240478743,primary,single_seed,Elvis Müzik
+1423624917,cp_1423624917,Camlı Köşk,Camlı Köşk,museum,12,0.6696588961732729,primary,single_seed,Camlı Köşk
+9217099231,cp_9217099231,İstanbul Üniversitesi Rıdvan Çelikel Arkeoloji Müzesi,İstanbul Üniversitesi Rıdvan Çelikel Arkeoloji Müzesi,museum,12,0.668171244159425,primary,single_seed,İstanbul Üniversitesi Rıdvan Çelikel Arkeoloji Müzesi
+1465652948,cp_1465652948,Karabaş Hazretleri Türbesi,Karabaş Hazretleri Türbesi,historic,12,0.6681106852978391,primary,single_seed,Karabaş Hazretleri Türbesi
+326372295,cp_326372295,Yıldız Sarayı Müze Müdürlüğü,Yıldız Sarayı Müze Müdürlüğü,museum,10,0.6680331141098214,primary,single_seed,Yıldız Sarayı Müze Müdürlüğü
+1377881422,cp_1377881422,Yedekçiler Mescidi,Yedekçiler Mescidi,historic,12,0.6679372964518958,primary,single_seed,Yedekçiler Mescidi

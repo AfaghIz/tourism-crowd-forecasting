@@ -1,0 +1,9 @@
+name,partial_match,country,lat,lon,timezone,status,query_name,population
+Sultanahmet,True,TR,41.00397,28.97884,Europe/Istanbul,OK,"Sultanahmet, Istanbul",
+Istanbul,True,TR,41.01384,28.94966,Europe/Istanbul,OK,"Eminonu, Istanbul",14804116.0
+Beyazit-Istanbul,True,TR,41.0188,28.92498,Europe/Istanbul,OK,"Beyoglu, Istanbul",
+Istanbul,True,TR,41.01384,28.94966,Europe/Istanbul,OK,"Topkapi, Istanbul",14804116.0
+Istanbul,True,TR,41.01384,28.94966,Europe/Istanbul,OK,"Fatih, Istanbul",14804116.0
+Istanbul,True,TR,41.01384,28.94966,Europe/Istanbul,OK,"Galata, Istanbul",14804116.0
+Istanbul,True,TR,41.01384,28.94966,Europe/Istanbul,OK,"Besiktas, Istanbul",14804116.0
+Istanbul,True,TR,41.01384,28.94966,Europe/Istanbul,OK,"Uskudar, Istanbul",14804116.0
