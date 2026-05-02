@@ -56,6 +56,7 @@ export function createMap(
   }
 ): MapController {
   const map = L.map(container, {
+    attributionControl: false,
     zoomControl: false,
     scrollWheelZoom: true,
     preferCanvas: true
@@ -68,7 +69,18 @@ export function createMap(
 
   tile.addTo(map)
 
+  // Keep attribution away from center overlays on mobile.
+  L.control.attribution({ position: 'bottomleft' }).addTo(map)
+
   map.setView(toLeafletLatLng(opts.defaultCenter), 12)
+
+  const invalidate = () => {
+    map.invalidateSize({ animate: false })
+  }
+  const ro = new ResizeObserver(() => invalidate())
+  ro.observe(container)
+  const onOrient = () => window.setTimeout(invalidate, 350)
+  window.addEventListener('orientationchange', onOrient)
 
   // Subtle zoom controls in the top-right.
   L.control
@@ -89,10 +101,7 @@ export function createMap(
       marker.setLatLng(toLeafletLatLng(selection.latlng))
     }
 
-    const popup = `<div style="font-weight:700; letter-spacing:-0.2px">${selection.label}</div>
-      <div style="opacity:0.8; margin-top:4px; font-size:12px">${selection.latlng.lat.toFixed(
-        5
-      )}, ${selection.latlng.lng.toFixed(5)}</div>`
+    const popup = `<div style="font-weight:700; letter-spacing:-0.2px">${selection.label}</div>`
 
     marker.bindPopup(popup, { closeButton: false })
     marker.openPopup()
@@ -107,7 +116,7 @@ export function createMap(
   map.on('click', (e: L.LeafletMouseEvent) => {
     const selection: MapSelection = {
       latlng: { lat: e.latlng.lat, lng: e.latlng.lng },
-      label: 'Map point',
+      label: 'Pinned location',
       kind: 'map'
     }
     setMarkerInternal(selection)
@@ -121,6 +130,8 @@ export function createMap(
       return { lat: c.lat, lng: c.lng }
     },
     destroy: () => {
+      window.removeEventListener('orientationchange', onOrient)
+      ro.disconnect()
       map.remove()
     }
   }
