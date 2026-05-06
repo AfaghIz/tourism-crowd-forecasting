@@ -1,0 +1,54 @@
+feature,importance
+num__family_iconic_landmark,0.38719577
+num__is_synagogue,0.11441637
+num__family_neighborhood_heritage,0.094484404
+num__is_fountain,0.073981866
+num__candidate_count_same_key,0.022552548
+cat__query_area_Uskudar Waterfront,0.021966605
+num__is_monument,0.0207217
+num__family_viewpoint_scenic,0.016892912
+num__subtype_flag_count,0.015476087
+cat__query_area_Sultanahmet Core,0.013311517
+num__is_museum,0.012727984
+cat__query_area_Eminonu / Spice Bazaar,0.012467016
+num__is_church,0.011136735
+num__lat,0.010839661
+num__is_cemetery,0.010058417
+num__dist_from_query_center_m,0.009524674
+cat__query_area_Balat / Fener,0.009121775
+cat__query_area_Galata Tower,0.008922677
+num__is_mosque,0.008892525
+cat__query_area_Hagia Sophia / Basilica Cistern,0.008866103
+cat__category_clean_historic,0.008780564
+num__rate,0.008284964
+cat__query_area_Istiklal / Pera,0.008033908
+cat__category_clean_museum,0.007891668
+num__is_cathedral,0.007670214
+cat__category_clean_religious,0.0074698185
+num__lon,0.007202356
+cat__query_area_Yildiz Palace,0.0070546614
+cat__query_area_Fatih / Valens Aqueduct,0.005668583
+cat__query_area_Suleymaniye,0.0054545025
+cat__category_clean_attraction,0.0050867563
+cat__query_area_Ortakoy,0.004949843
+num__is_palace,0.00403612
+cat__query_area_Topkapi Palace,0.003709242
+cat__query_area_Eyup / Pierre Loti,0.0036999001
+num__is_fortress,0.003621312
+cat__query_area_Dolmabahce,0.0035355561
+num__family_religious_monumental,0.0027346383
+num__is_tower,0.0026328315
+num__family_palatial_imperial,0.0023338038
+cat__query_area_Kadikoy Historic Center,0.0020713315
+cat__query_area_Rumeli Hisari,0.0018517573
+cat__query_area_Maiden's Tower Coast,0.0013350901
+cat__query_area_Beylerbeyi Palace,0.0008265583
+num__is_tomb,0.0005067048
+num__is_hamam,0.0
+num__is_bridge,0.0
+num__is_tekke_or_dergah,0.0
+num__is_gate,0.0
+num__has_possible_duplicate,0.0
+num__possible_duplicate_count,0.0
+num__family_museum_cultural,0.0
+num__has_valid_wiki_identity_but_missing_pageviews,0.0

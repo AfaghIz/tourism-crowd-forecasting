@@ -14,6 +14,10 @@ import {
 } from './api/api'
 import type { LatLng, MapSelection, SelectionKind } from './domain/types'
 
+type AppSelection = MapSelection & {
+  entityId?: string
+}
+
 const DEFAULT_CENTER: LatLng = { lat: 41.0082, lng: 28.9784 }
 
 const POI_CATEGORIES = [
@@ -376,7 +380,14 @@ function googleMapsDirectionsUrl(sel: MapSelection): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${lat},${lng}`)}`
 }
 
-async function fillAlternativesIfCrowded(sel: MapSelection, crowdLevel: string, forecastScope: string) {
+function pickPoiIdFromRankedRec(rec: RankedRecommendation): string | null {
+  const raw = rec.poi_id ?? rec.id
+  if (typeof raw !== 'string') return null
+  const trimmed = raw.trim()
+  return trimmed ? trimmed : null
+}
+
+async function fillAlternativesIfCrowded(sel: AppSelection, crowdLevel: string, forecastScope: string) {
   const warn = el<HTMLDivElement>('crowdedWarning')
   const block = el<HTMLDivElement>('alternativesBlock')
   const list = el<HTMLDivElement>('alternativesList')
@@ -385,15 +396,26 @@ async function fillAlternativesIfCrowded(sel: MapSelection, crowdLevel: string, 
   const altTitle = el<HTMLDivElement>('alternativesTitle')
 
   const showRecommendations = sel.kind === 'location'
+  const showAnchorAlternatives = sel.kind === 'poi' && typeof sel.entityId === 'string'
+  const forceAlternatives = showRecommendations || showAnchorAlternatives
 
   warn.hidden = crowdLevel !== 'High'
-  block.hidden = !(crowdLevel === 'High' || showRecommendations)
+  block.hidden = !(crowdLevel === 'High' || forceAlternatives)
   list.innerHTML = ''
   if (showRecommendations) {
     altTitle.textContent = 'Recommended nearby'
     warnTitle.textContent = 'Busy right now'
     warnBody.textContent =
       'This selection looks crowded for your chosen window. Consider an alternative below.'
+    warn.hidden = crowdLevel !== 'High'
+  } else if (showAnchorAlternatives) {
+    altTitle.textContent =
+      crowdLevel === 'High' ? `Less crowded alternatives to ${sel.label}` : `Alternatives to ${sel.label}`
+    warnTitle.textContent = 'Try a nearby alternative'
+    warnBody.textContent =
+      crowdLevel === 'High'
+        ? 'This landmark looks busy for your chosen window. The list below favors nearby alternatives with lower crowd pressure.'
+        : 'These nearby alternatives preserve the feel of the selected place while giving you a few calmer options to consider.'
     warn.hidden = crowdLevel !== 'High'
   } else if (!showRecommendations && crowdLevel !== 'High') {
     warnTitle.textContent = 'Busy right now'
@@ -421,15 +443,21 @@ async function fillAlternativesIfCrowded(sel: MapSelection, crowdLevel: string, 
     const data = await fetchRecommendations({
       origin: sel.latlng,
       timestamp: new Date().toISOString(),
-      radiusKm: showRecommendations ? 10 : 25,
-      topK: showRecommendations ? 6 : 4,
+      radiusKm: showRecommendations ? 10 : showAnchorAlternatives ? 6 : 25,
+      topK: showRecommendations || showAnchorAlternatives ? 6 : 4,
       includeItinerary: false,
-      ...(cat ? { allowedCategories: [cat] } : {})
+      ...(showAnchorAlternatives
+        ? { anchorPoiId: sel.entityId, anchorRadiusKm: 3 }
+        : cat
+          ? { allowedCategories: [cat] }
+          : {})
     })
     const recs = data.recommendations
     if (recs.length === 0) {
       list.innerHTML =
-        '<p class="altEmpty">No ranked POIs for this pin—try another category or widen the map.</p>'
+        showAnchorAlternatives
+          ? '<p class="altEmpty">No strong alternatives were found for this POI within the current radius.</p>'
+          : '<p class="altEmpty">No ranked POIs for this pin—try another category or widen the map.</p>'
       return
     }
     for (const rec of recs) {
@@ -448,15 +476,21 @@ async function fillAlternativesIfCrowded(sel: MapSelection, crowdLevel: string, 
             ? `${km.toFixed(1)} km`
             : '—'
       const metaCat = String(rec.category ?? '')
+      const crowd = String(rec.crowd_level_label ?? '')
+      const explanation = String(rec.explanation ?? rec.explanation_text ?? '')
       const b = document.createElement('button')
       b.type = 'button'
       b.className = 'altPoiBtn'
       b.setAttribute('role', 'listitem')
-      b.innerHTML = `<span class="altPoiName">${name}</span><span class="altPoiMeta">${metaCat} · ${distLabel}</span>`
+      const metaBits = [metaCat, distLabel, crowd ? `crowd ${crowd}` : ''].filter(Boolean)
+      b.innerHTML = `<span class="altPoiName">${name}</span><span class="altPoiMeta">${metaBits.join(' · ')}</span>${
+        explanation.trim() ? `<span class="altPoiMeta">${explanation}</span>` : ''
+      }`
       const ll = pickLatLngFromRankedRec(rec)
+      const poiId = pickPoiIdFromRankedRec(rec)
       if (ll) {
         b.addEventListener('click', () => {
-          const next: MapSelection = { latlng: ll, label: name, kind: 'location' }
+          const next: AppSelection = { latlng: ll, label: name, kind: poiId ? 'poi' : 'location', ...(poiId ? { entityId: poiId } : {}) }
           currentSelection = next
           setChip(next)
           map.setMarker(next, { flyTo: true })
@@ -470,7 +504,7 @@ async function fillAlternativesIfCrowded(sel: MapSelection, crowdLevel: string, 
   }
 }
 
-function setChip(selection: MapSelection | null) {
+function setChip(selection: AppSelection | null) {
   const dot = el<HTMLElement>('selectionChipDot')
   const kindText = el<HTMLSpanElement>('selectionKindText')
   const labelText = el<HTMLDivElement>('selectionLabelText')
@@ -795,7 +829,7 @@ function makePoiRow(poi: Poi): HTMLElement {
   return row
 }
 
-let currentSelection: MapSelection | null = null
+let currentSelection: AppSelection | null = null
 
 const map = createMap(el<HTMLDivElement>('map'), {
   defaultCenter: DEFAULT_CENTER,
@@ -819,7 +853,8 @@ function selectPoi(poi: Poi) {
   currentSelection = {
     latlng: { lat: poi.lat, lng: poi.lng },
     label: poi.name,
-    kind: 'poi'
+    kind: 'poi',
+    entityId: poi.id
   }
   setChip(currentSelection)
   map.setMarker(currentSelection, { flyTo: true })
@@ -1075,4 +1110,3 @@ window.setTimeout(() => {
 }, 160)
 setChip(null)
 runHotelPicker('')
-

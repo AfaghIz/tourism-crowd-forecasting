@@ -97,7 +97,13 @@ export type RankedRecommendation = Record<string, unknown> & {
   score?: number
   distance_km?: number
   explanation?: string
+  explanation_text?: string
   poi_id?: string
+  category?: string
+  crowd_level_label?: string
+  lat?: number
+  lng?: number
+  lon?: number
 }
 
 export type RecommendationApiResponse = {
@@ -119,6 +125,10 @@ export async function fetchRecommendations(body: {
   includeItinerary?: boolean
   /** Maps to backend ``allowed_categories`` (``category_clean`` filter). */
   allowedCategories?: string[]
+  /** When set, backend switches to anchor-based alternative recommendation mode. */
+  anchorPoiId?: string
+  /** Search radius around the anchor POI for alternatives. */
+  anchorRadiusKm?: number
 }): Promise<RecommendationApiResponse> {
   return await postJson<RecommendationApiResponse>('/api/recommendations', body)
 }

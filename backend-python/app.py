@@ -133,6 +133,8 @@ def create_app() -> Flask:
             topK / top_k: default 10
             includeItinerary / include_itinerary: default false
             allowedCategories / allowed_categories: optional string array
+            anchorPoiId / anchor_poi_id: optional POI id for crowd-aware alternative mode
+            anchorRadiusKm / anchor_radius_km: optional radius around anchor, default 3
         """
         body = request.get_json(silent=True)
         if not isinstance(body, dict):
@@ -165,9 +167,13 @@ def create_app() -> Flask:
         radius = float(body.get("radiusKm", body.get("radius_km", 5.0)))
         top_k = int(body.get("topK", body.get("top_k", 10)))
         inc_it = bool(body.get("includeItinerary", body.get("include_itinerary", False)))
+        anchor_poi_id = body.get("anchorPoiId", body.get("anchor_poi_id"))
+        anchor_radius_km = float(body.get("anchorRadiusKm", body.get("anchor_radius_km", 3.0)))
 
         if not isinstance(user_profile, dict) and user_profile is not None:
             return jsonify({"errors": ["userProfile must be an object when provided"]}), 400
+        if anchor_poi_id is not None and not str(anchor_poi_id).strip():
+            return jsonify({"errors": ["anchorPoiId must be a non-empty string when provided"]}), 400
 
         allowed = body.get("allowedCategories") or body.get("allowed_categories")
         if allowed is not None and not isinstance(allowed, list):
@@ -184,6 +190,8 @@ def create_app() -> Flask:
                 top_k=top_k,
                 include_itinerary=inc_it,
                 allowed_categories=allowed_list,
+                anchor_poi_id=str(anchor_poi_id).strip() if anchor_poi_id is not None else None,
+                anchor_radius_km=anchor_radius_km,
             )
             return jsonify(result)
         except ValueError as e:

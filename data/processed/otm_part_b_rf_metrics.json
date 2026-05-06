@@ -1,0 +1,10 @@
+{
+  "mae": 0.9933069816010627,
+  "rmse": 1.192741405375992,
+  "r2": 0.31491215498090797,
+  "train_rows": 127,
+  "test_rows": 32,
+  "labeled_rows": 159,
+  "predict_rows": 120,
+  "feature_count": 33
+}

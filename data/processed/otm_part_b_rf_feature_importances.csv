@@ -1,0 +1,54 @@
+feature,importance
+num__family_iconic_landmark,0.6805240189210395
+num__lat,0.0728298867926745
+num__lon,0.05811706529451773
+num__dist_from_query_center_m,0.05315534334090194
+num__family_neighborhood_heritage,0.02216294395094658
+num__subtype_flag_count,0.01757870178907636
+num__candidate_count_same_key,0.01368343060895684
+cat__query_area_Sultanahmet Core,0.007833072151593125
+num__is_mosque,0.0071871049576740864
+cat__query_area_Uskudar Waterfront,0.005778607278161775
+cat__query_area_Istiklal / Pera,0.005479379622853731
+num__family_religious_monumental,0.00484335881754403
+num__is_church,0.004763617205669967
+cat__query_area_Eminonu / Spice Bazaar,0.004724202761932336
+cat__query_area_Hagia Sophia / Basilica Cistern,0.004721016730486596
+num__is_monument,0.004052599892743475
+cat__category_clean_religious,0.00390696077847654
+cat__query_area_Galata Tower,0.0030185638178850623
+num__family_viewpoint_scenic,0.002405111232510967
+num__family_museum_cultural,0.0023105878575598246
+num__rate,0.0022601027248074063
+cat__category_clean_attraction,0.0020894991502073434
+cat__category_clean_museum,0.00198160626505251
+cat__query_area_Balat / Fener,0.0018844267996298777
+num__is_museum,0.0017501412795684604
+cat__category_clean_historic,0.001514556099612955
+cat__query_area_Yildiz Palace,0.0012381811518995917
+cat__query_area_Fatih / Valens Aqueduct,0.0011069422013930215
+cat__query_area_Topkapi Palace,0.0010216647031617274
+cat__query_area_Suleymaniye,0.000988458254339545
+cat__query_area_Eyup / Pierre Loti,0.000895041901458281
+num__is_cemetery,0.0007702600478112231
+num__is_tomb,0.0006276942340753961
+num__is_fortress,0.0006123623849053734
+num__family_palatial_imperial,0.00048417915873428705
+num__is_palace,0.0004324301914618544
+cat__query_area_Kadikoy Historic Center,0.0003969188654090037
+cat__query_area_Dolmabahce,0.00036567489007532006
+num__is_fountain,0.0001870585714750108
+cat__query_area_Rumeli Hisari,0.00016755073914154791
+num__is_synagogue,8.809852148026177e-05
+num__is_tower,6.157806109492271e-05
+num__is_tekke_or_dergah,0.0
+num__is_bridge,0.0
+num__is_gate,0.0
+cat__query_area_Ortakoy,0.0
+num__has_possible_duplicate,0.0
+num__possible_duplicate_count,0.0
+num__is_hamam,0.0
+cat__query_area_Maiden's Tower Coast,0.0
+cat__query_area_Beylerbeyi Palace,0.0
+num__is_cathedral,0.0
+num__has_valid_wiki_identity_but_missing_pageviews,0.0

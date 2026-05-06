@@ -17,9 +17,11 @@ Public surface:
 
 from __future__ import annotations
 
-import zlib
 import math
+import os
+import zlib
 from datetime import datetime
+from pathlib import Path
 from typing import Final, Protocol, runtime_checkable
 
 import pandas as pd
@@ -32,6 +34,10 @@ COL_CROWD_PRESSURE: Final[str] = "crowd_pressure_index"
 
 # Optional ``df.attrs`` key read by :func:`compute_features` when ``timestamp`` is omitted.
 ATTR_CROWD_TIMESTAMP: Final[str] = "crowd_timestamp"
+ATTR_CITY_DEMAND_SCORE: Final[str] = "city_demand_score"
+ATTR_CROWD_BASIS_DATE: Final[str] = "crowd_basis_date"
+
+DEFAULT_WORKFLOW_CSV: Final[str] = "otm_crowdindex_xgb__rf_weekly.csv"
 
 
 @runtime_checkable
@@ -43,6 +49,7 @@ class CrowdScoreProvider(Protocol):
 
 
 _provider: CrowdScoreProvider | None = None
+_default_provider: "WorkflowCrowdScoreProvider | None" = None
 
 
 def set_crowd_score_provider(provider: CrowdScoreProvider | None) -> None:
@@ -62,8 +69,33 @@ def set_crowd_score_provider(provider: CrowdScoreProvider | None) -> None:
 
 
 def get_registered_provider() -> CrowdScoreProvider | None:
-    """Return the active provider, if any."""
-    return _provider
+    """Return the active provider, falling back to the workflow CSV provider when available."""
+    global _default_provider
+    if _provider is not None:
+        return _provider
+    if _default_provider is not None:
+        return _default_provider
+    try:
+        _default_provider = WorkflowCrowdScoreProvider(resolve_default_workflow_csv_path())
+    except Exception:
+        _default_provider = None
+    return _default_provider
+
+
+def resolve_default_workflow_csv_path() -> Path:
+    """
+    Resolve the default workflow crowdedness table used by the backend.
+
+    The app can override this with ``RECOMMENDATION_CROWD_CSV``. Otherwise we use the
+    integrated workflow variant ``xgb__rf`` because it currently balances the best
+    temporal model with the strongest Part B model in the repo.
+    """
+    env = os.environ.get("RECOMMENDATION_CROWD_CSV")
+    if env:
+        return Path(env).expanduser().resolve()
+
+    project_root = Path(__file__).resolve().parents[2]
+    return project_root / "data" / "processed" / DEFAULT_WORKFLOW_CSV
 
 
 def fallback_mock_from_row(row: pd.Series) -> float | None:
@@ -80,6 +112,75 @@ def fallback_mock_from_row(row: pd.Series) -> float | None:
         return float(v)
     except (TypeError, ValueError):
         return None
+
+
+class WorkflowCrowdScoreProvider:
+    """
+    Crowd score provider backed by the notebook-generated POI-time crowdedness table.
+
+    It normalizes ``crowdindex_poi`` within each date to produce a monotonic busyness
+    score in ``[0, 1]`` and exposes the matching citywide demand score for demand-aware
+    reranking in the recommendation layer.
+    """
+
+    def __init__(self, csv_path: str | Path) -> None:
+        path = Path(csv_path).expanduser().resolve()
+        if not path.is_file():
+            raise FileNotFoundError(f"Workflow crowdedness CSV not found: {path}")
+
+        df = pd.read_csv(path, parse_dates=["date"])
+        required = {"poi_id", "date", "crowdindex_poi", "city_demand_score"}
+        missing = required.difference(df.columns)
+        if missing:
+            raise ValueError(f"Workflow crowdedness CSV missing columns: {sorted(missing)}")
+        if df.empty:
+            raise ValueError(f"Workflow crowdedness CSV is empty: {path}")
+
+        work = df.copy()
+        work["date_key"] = work["date"].dt.strftime("%Y-%m-%d")
+        max_per_date = work.groupby("date_key")["crowdindex_poi"].transform("max")
+        work["crowd_pressure_norm"] = (
+            work["crowdindex_poi"] / max_per_date.replace(0.0, 1.0)
+        ).clip(lower=0.0, upper=1.0)
+
+        self._dates = pd.to_datetime(sorted(work["date"].dropna().unique()))
+        self._latest_date = self._dates[-1].to_pydatetime()
+        self._score_lookup: dict[tuple[str, str], float] = {}
+        self._city_demand_lookup: dict[str, float] = {}
+
+        for row in work.itertuples(index=False):
+            date_key = getattr(row, "date_key")
+            poi_id = str(getattr(row, "poi_id") or "").strip()
+            if not poi_id:
+                continue
+            self._score_lookup[(poi_id, date_key)] = float(getattr(row, "crowd_pressure_norm"))
+            self._city_demand_lookup[date_key] = float(getattr(row, "city_demand_score"))
+
+    def _resolve_timestamp(self, timestamp: datetime | None) -> datetime:
+        if timestamp is None:
+            return self._latest_date
+        ts = pd.Timestamp(timestamp).to_pydatetime()
+        nearest_idx = int(
+            (abs(self._dates - pd.Timestamp(ts))).argmin()
+        )
+        return self._dates[nearest_idx].to_pydatetime()
+
+    def _date_key(self, timestamp: datetime | None) -> str:
+        return self._resolve_timestamp(timestamp).strftime("%Y-%m-%d")
+
+    def get_crowd_score(self, poi_id: str, timestamp: datetime | None = None) -> float:
+        pid = str(poi_id or "").strip()
+        if not pid:
+            return 0.5
+        date_key = self._date_key(timestamp)
+        return float(self._score_lookup.get((pid, date_key), 0.5))
+
+    def get_city_demand_score(self, timestamp: datetime | None = None) -> float:
+        date_key = self._date_key(timestamp)
+        return float(self._city_demand_lookup.get(date_key, 0.5))
+
+    def get_basis_date(self, timestamp: datetime | None = None) -> str:
+        return self._date_key(timestamp)
 
 
 def get_crowd_score(
@@ -107,9 +208,10 @@ def get_crowd_score(
     :func:`compute_features`) do not import model code.
     """
     pid = str(poi_id or "").strip()
-    if _provider is not None and pid:
+    provider = get_registered_provider()
+    if provider is not None and pid:
         try:
-            return _clip01(float(_provider.get_crowd_score(pid, timestamp)))
+            return _clip01(float(provider.get_crowd_score(pid, timestamp)))
         except Exception:
             pass
 
@@ -155,12 +257,26 @@ def attach_crowd_scores(
         return out
 
     out = df.copy()
+    provider = get_registered_provider()
     scores: list[float] = []
     for _, row in out.iterrows():
         pid = str(row.get("poi_id", "") or "").strip()
         mock = fallback_mock_from_row(row)
         scores.append(get_crowd_score(pid, timestamp, fallback_mock=mock))
     out[output_column] = scores
+    if provider is not None and hasattr(provider, "get_city_demand_score"):
+        try:
+            city_score = float(getattr(provider, "get_city_demand_score")(timestamp))
+            basis_date = str(getattr(provider, "get_basis_date")(timestamp))
+            out.attrs = {
+                **out.attrs,
+                ATTR_CITY_DEMAND_SCORE: city_score,
+                ATTR_CROWD_BASIS_DATE: basis_date,
+            }
+            out[ATTR_CITY_DEMAND_SCORE] = city_score
+            out[ATTR_CROWD_BASIS_DATE] = basis_date
+        except Exception:
+            pass
     return out
 
 

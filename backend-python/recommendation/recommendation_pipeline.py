@@ -23,8 +23,13 @@ from pathlib import Path
 from typing import Any, Final, Mapping
 
 import pandas as pd
+import numpy as np
 
-from recommendation.alternatives import attach_alternative_suggestions
+from recommendation.alternatives import (
+    attach_alternative_suggestions,
+    build_alternative_payload,
+    rank_anchor_alternatives,
+)
 from recommendation.candidate_generator import get_candidates
 from recommendation.category_filter import filter_by_categories
 from recommendation.crowd_scores import ATTR_CROWD_TIMESTAMP, attach_crowd_scores
@@ -44,6 +49,16 @@ DEFAULT_WEIGHTS: Final[dict[str, float]] = {
 }
 
 
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        v = float(pd.to_numeric(value, errors="coerce"))
+        if np.isfinite(v):
+            return v
+    except (TypeError, ValueError):
+        pass
+    return float(default)
+
+
 def validate_origin(lat: float, lon: float) -> None:
     if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lon <= 180.0):
         raise ValueError(
@@ -53,7 +68,11 @@ def validate_origin(lat: float, lon: float) -> None:
 
 def resolve_default_csv_path() -> Path:
     root = Path(__file__).resolve().parent.parent
+    project_root = root.parent
     candidates = (
+        project_root / "data" / "processed" / "otm_pois_model_ready_with_nlp_features_exclusions.csv",
+        project_root / "data" / "processed" / "otm_pois_model_ready_with_nlp_features.csv",
+        project_root / "data" / "processed" / "otm_pois_model_ready_wiki_reviewed.csv",
         root / "data" / "otm_pois_model_ready.csv",
         root / "otm_pois_model_ready.csv",
     )
@@ -78,6 +97,16 @@ def stage_load_and_filter_candidates(
     return get_candidates(poi_df, origin_lat, origin_lon, radius_km=radius_km)
 
 
+def stage_load_full_poi_table(
+    *,
+    csv_path: str | None,
+    allowed_categories: list[str] | None,
+) -> pd.DataFrame:
+    resolved = csv_path or os.environ.get("RECOMMENDATION_POI_CSV") or str(resolve_default_csv_path())
+    poi_df = load_poi_data(str(resolved))
+    return filter_by_categories(poi_df, allowed_categories)
+
+
 def stage_attach_time_aware_crowd(
     candidates: pd.DataFrame,
     timestamp: datetime | None,
@@ -87,6 +116,18 @@ def stage_attach_time_aware_crowd(
     if timestamp is not None:
         out.attrs = {**out.attrs, ATTR_CROWD_TIMESTAMP: timestamp}
     return out
+
+
+def stage_find_anchor_frame(
+    poi_df: pd.DataFrame,
+    anchor_poi_id: str,
+    *,
+    timestamp: datetime | None,
+) -> pd.DataFrame:
+    anchor = poi_df[poi_df["poi_id"].astype("string") == str(anchor_poi_id)].copy()
+    if anchor.empty:
+        raise ValueError(f"anchor_poi_id not found in POI dataset: {anchor_poi_id}")
+    return stage_attach_time_aware_crowd(anchor, timestamp)
 
 
 def stage_rank_with_diversity_pipeline(
@@ -268,6 +309,8 @@ def run_recommendation_pipeline(
     crowd_signal_column: str | None = None,
     novelty_jitter: float | None = None,
     novelty_dampen: float | None = None,
+    anchor_poi_id: str | None = None,
+    anchor_radius_km: float = 3.0,
 ) -> dict[str, Any]:
     """
     Execute pipeline stages and return ``{"recommendations": [...], "itinerary": ...}``.
@@ -279,6 +322,22 @@ def run_recommendation_pipeline(
         raise ValueError("radius_km must be positive.")
     if top_k < 1:
         raise ValueError("top_k must be at least 1.")
+    if anchor_radius_km <= 0:
+        raise ValueError("anchor_radius_km must be positive.")
+
+    if anchor_poi_id is not None and str(anchor_poi_id).strip():
+        return run_anchor_alternative_pipeline(
+            origin_lat,
+            origin_lon,
+            str(anchor_poi_id).strip(),
+            timestamp=timestamp,
+            radius_km=radius_km,
+            top_k=top_k,
+            csv_path=csv_path,
+            allowed_categories=allowed_categories,
+            crowd_signal_column=crowd_signal_column,
+            anchor_radius_km=anchor_radius_km,
+        )
 
     candidates = stage_load_and_filter_candidates(
         origin_lat,
@@ -363,4 +422,89 @@ def run_recommendation_pipeline(
     return {
         "recommendations": recommendations,
         "itinerary": itinerary_stops if include_itinerary else None,
+    }
+
+
+def run_anchor_alternative_pipeline(
+    origin_lat: float,
+    origin_lon: float,
+    anchor_poi_id: str,
+    *,
+    timestamp: datetime | None,
+    radius_km: float,
+    top_k: int,
+    csv_path: str | None,
+    allowed_categories: list[str] | None,
+    crowd_signal_column: str | None,
+    anchor_radius_km: float,
+) -> dict[str, Any]:
+    """
+    Anchor-based alternative recommendation:
+    find feasible POIs near the user and rerank those near the anchor by crowd relief,
+    similarity, and practicality.
+    """
+    poi_df = stage_load_full_poi_table(csv_path=csv_path, allowed_categories=allowed_categories)
+    if poi_df.empty:
+        return {"recommendations": [], "itinerary": None, "mode": "alternatives"}
+
+    anchor_frame = stage_find_anchor_frame(poi_df, anchor_poi_id, timestamp=timestamp)
+    anchor_row = anchor_frame.iloc[0]
+
+    origin_candidates = get_candidates(poi_df, origin_lat, origin_lon, radius_km=radius_km)
+    if origin_candidates.empty:
+        return {"recommendations": [], "itinerary": None, "mode": "alternatives"}
+
+    anchor_candidates = get_candidates(
+        origin_candidates,
+        float(anchor_row["lat"]),
+        float(anchor_row["lon"]),
+        radius_km=anchor_radius_km,
+        distance_column="distance_to_anchor_km",
+    )
+    if anchor_candidates.empty:
+        return {"recommendations": [], "itinerary": None, "mode": "alternatives"}
+
+    candidate_pool = stage_attach_time_aware_crowd(anchor_candidates, timestamp)
+    candidate_pool = candidate_pool.copy()
+    if "distance_km" in candidate_pool.columns:
+        candidate_pool["distance_to_origin_km"] = candidate_pool["distance_km"]
+
+    anchor_series = anchor_row.copy()
+    for key, value in candidate_pool.attrs.items():
+        if key not in anchor_series.index:
+            anchor_series[key] = value
+
+    ranked = rank_anchor_alternatives(
+        anchor_series,
+        candidate_pool,
+        origin_lat=origin_lat,
+        origin_lon=origin_lon,
+        crowd_signal_column=crowd_signal_column,
+        max_anchor_radius_km=anchor_radius_km,
+        max_origin_radius_km=radius_km,
+        top_k=top_k,
+    )
+
+    recommendations = build_alternative_payload(
+        ranked,
+        anchor_series,
+        crowd_signal_column=crowd_signal_column,
+    )
+
+    anchor_payload = {
+        "poi_id": anchor_series.get("poi_id"),
+        "name": anchor_series.get("display_name_en") or anchor_series.get("name"),
+        "lat": float(anchor_series["lat"]),
+        "lng": float(anchor_series["lon"]),
+        "category": anchor_series.get("category_clean"),
+        "crowd_signal": _safe_float(anchor_series.get("crowd_pressure_index"), default=0.5),
+        "city_demand_score": _safe_float(anchor_series.get("city_demand_score"), default=0.5),
+        "crowd_basis_date": anchor_series.get("crowd_basis_date"),
+    }
+
+    return {
+        "recommendations": recommendations,
+        "itinerary": None,
+        "mode": "alternatives",
+        "anchor": anchor_payload,
     }

@@ -24,6 +24,7 @@ COL_POPULARITY: Final[str] = "wiki_popularity_score"
 COL_MOCK_CROWD: Final[str] = "predicted_crowd_index_mock"
 COL_RATE_NORM: Final[str] = "rate_normalized"
 COL_POPULARITY_NORM: Final[str] = "wiki_popularity_normalized"
+COL_EXCLUDE_FROM_PART_B: Final[str] = "exclude_from_part_b"
 
 DEFAULT_CATEGORY_FILL: Final[str] = "unknown"
 
@@ -77,6 +78,7 @@ def load_poi_data(filepath: str) -> pd.DataFrame:
         )
 
     out = _clean_category(out)
+    out = _drop_excluded_rows(out)
     out = _add_mock_crowd_column(out)
     out = _add_normalized_features(out)
 
@@ -116,6 +118,20 @@ def _clean_category(df: pd.DataFrame) -> pd.DataFrame:
         cat = cat.replace("", pd.NA)
         work[COL_CATEGORY] = cat.fillna(DEFAULT_CATEGORY_FILL).str.lower()
     return work
+
+
+def _drop_excluded_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Remove non-operational POIs when an explicit exclusion flag is available.
+
+    The cleaned research dataset carries ``exclude_from_part_b`` for rows such as
+    historical events and abstract entities that should not enter recommendation.
+    """
+    work = df.copy()
+    if COL_EXCLUDE_FROM_PART_B not in work.columns:
+        return work
+    flag = pd.to_numeric(work[COL_EXCLUDE_FROM_PART_B], errors="coerce").fillna(0).astype(int)
+    return work.loc[flag == 0].copy()
 
 
 def _add_mock_crowd_column(df: pd.DataFrame) -> pd.DataFrame:
