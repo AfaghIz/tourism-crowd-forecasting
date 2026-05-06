@@ -1,0 +1,22 @@
+poi_id,display_name_en,category_clean,query_area,exclude_from_part_b,exclude_from_recommendation,exclusion_reason
+otm_N6879165718,15 July coup monument (Istanbul),historic,Beylerbeyi Palace,1,1,low_signal_monument
+otm_Q2331925,Battle of Chalcedon,historic,Kadikoy Historic Center,1,1,historical_event
+otm_Q65059780,Battle of Constantinople,historic,Fatih / Valens Aqueduct,1,1,historical_event
+otm_Q2527826,Battle of Pegae,historic,Topkapi Palace,1,1,historical_event
+otm_Q23725,Byzantium,historic,Topkapi Palace,1,1,"Abstract historical settlement, not a concrete attraction POI"
+otm_Q337381,Chalcedon,historic,Kadikoy Historic Center,1,1,"Abstract historical settlement, not a concrete attraction POI"
+otm_W32394781,Istanbul City Wall,historic,Eyup / Pierre Loti,1,1,non_atomic_poi
+otm_Q65051536,Pyrrhias Cyon,historic,Rumeli Hisari,1,1,ancient_or_non_operational_entity
+otm_Q1400402,Reconquest of Constantinople,historic,Eminonu / Spice Bazaar,1,1,historical_event
+otm_Q1750892,Siege of Constantinople,historic,Topkapi Palace,1,1,"Historical event entry, not a concrete attraction POI"
+otm_Q2155032,Siege of Constantinople,historic,Topkapi Palace,1,1,"Historical event entry, not a concrete attraction POI"
+otm_Q2742323,Siege of Constantinople,historic,Topkapi Palace,1,1,"Historical event entry, not a concrete attraction POI"
+otm_Q312268,Siege of Constantinople,historic,Topkapi Palace,1,1,"Historical event entry, not a concrete attraction POI"
+otm_Q3181408,Siege of Constantinople,historic,Eminonu / Spice Bazaar,1,1,"Historical event entry, not a concrete attraction POI"
+otm_Q3485862,Siege of Constantinople,historic,Topkapi Palace,1,1,"Historical event entry, not a concrete attraction POI"
+otm_Q700886,Siege of Constantinople,historic,Topkapi Palace,1,1,"Historical event entry, not a concrete attraction POI"
+otm_Q767844,Siege of Constantinople,historic,Topkapi Palace,1,1,"Historical event entry, not a concrete attraction POI"
+otm_Q399482,Siege of Constantinople (674-678),historic,Topkapi Palace,1,1,"Historical event entry, not a concrete attraction POI"
+otm_Q27900,Siege of Constantinople (717-718),historic,Eminonu / Spice Bazaar,1,1,"Historical event entry, not a concrete attraction POI"
+otm_Q956679,Siege of Constantinople (821-823),historic,Eminonu / Spice Bazaar,1,1,"Historical event entry, not a concrete attraction POI"
+otm_Q11908797,batalla del Bòsfor,historic,Eminonu / Spice Bazaar,1,1,historical_event

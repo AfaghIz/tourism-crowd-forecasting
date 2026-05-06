@@ -1,0 +1,67 @@
+category_clean,group_median,group_count,group_type,query_area
+attraction,8.315196096197152,26,category,
+historic,8.740656691541368,69,category,
+museum,7.578352518719311,44,category,
+religious,7.312185093775222,94,category,
+attraction,11.342599670460043,1,category_area,Beylerbeyi Palace
+attraction,7.976761306611992,6,category_area,Dolmabahce
+attraction,10.228543685877387,2,category_area,Eminonu / Spice Bazaar
+attraction,8.317766166719343,1,category_area,Eyup / Pierre Loti
+attraction,9.704203659081026,2,category_area,Galata Tower
+attraction,7.151755631955831,2,category_area,Hagia Sophia / Basilica Cistern
+attraction,0.0,2,category_area,Istiklal / Pera
+attraction,8.312626025674962,3,category_area,Kadikoy Historic Center
+attraction,0.0,1,category_area,Ortakoy
+attraction,5.1299162210064395,2,category_area,Rumeli Hisari
+attraction,8.502079553606189,1,category_area,Suleymaniye
+attraction,9.285262298493443,1,category_area,Sultanahmet Core
+attraction,10.51219277958166,1,category_area,Topkapi Palace
+attraction,7.1693500166706,1,category_area,Yildiz Palace
+historic,10.150230436100662,5,category_area,Balat / Fener
+historic,8.509161019718974,1,category_area,Beylerbeyi Palace
+historic,8.204617943531787,2,category_area,Dolmabahce
+historic,7.1252830915107115,7,category_area,Eminonu / Spice Bazaar
+historic,8.475328987317539,3,category_area,Eyup / Pierre Loti
+historic,7.894377561569659,8,category_area,Fatih / Valens Aqueduct
+historic,7.608374474380783,3,category_area,Hagia Sophia / Basilica Cistern
+historic,7.002155954403621,3,category_area,Istiklal / Pera
+historic,7.677400430514807,7,category_area,Kadikoy Historic Center
+historic,4.370328345770684,2,category_area,Rumeli Hisari
+historic,0.0,3,category_area,Suleymaniye
+historic,9.362889770436468,11,category_area,Sultanahmet Core
+historic,9.882774510938587,11,category_area,Topkapi Palace
+historic,7.152268856032539,1,category_area,Uskudar Waterfront
+historic,9.200089031537924,2,category_area,Yildiz Palace
+museum,7.135687347028144,3,category_area,Balat / Fener
+museum,10.449149291137577,1,category_area,Beylerbeyi Palace
+museum,8.012054876952197,2,category_area,Dolmabahce
+museum,7.223358719541714,4,category_area,Eminonu / Spice Bazaar
+museum,0.0,1,category_area,Eyup / Pierre Loti
+museum,7.6094954453133,4,category_area,Galata Tower
+museum,11.068433624893217,3,category_area,Hagia Sophia / Basilica Cistern
+museum,7.109499523590566,6,category_area,Istiklal / Pera
+museum,0.0,2,category_area,Kadikoy Historic Center
+museum,5.762051382780177,1,category_area,Ortakoy
+museum,9.162977538643474,4,category_area,Rumeli Hisari
+museum,3.4513713685792964,2,category_area,Suleymaniye
+museum,9.31721973360328,3,category_area,Sultanahmet Core
+museum,7.640123172695364,7,category_area,Topkapi Palace
+museum,10.594908243570373,1,category_area,Yildiz Palace
+religious,7.4673710669175595,13,category_area,Balat / Fener
+religious,0.0,3,category_area,Beylerbeyi Palace
+religious,8.003697339094368,1,category_area,Dolmabahce
+religious,8.331400413078994,4,category_area,Eminonu / Spice Bazaar
+religious,8.028781162487148,5,category_area,Eyup / Pierre Loti
+religious,8.490580727810915,10,category_area,Fatih / Valens Aqueduct
+religious,8.151273302820583,12,category_area,Galata Tower
+religious,7.32052696227274,1,category_area,Hagia Sophia / Basilica Cistern
+religious,0.0,8,category_area,Istiklal / Pera
+religious,5.442417710521793,5,category_area,Kadikoy Historic Center
+religious,6.5722825426940075,1,category_area,Maiden's Tower Coast
+religious,10.309452535685944,1,category_area,Ortakoy
+religious,0.0,2,category_area,Rumeli Hisari
+religious,8.14757773620177,5,category_area,Suleymaniye
+religious,9.294703957190254,6,category_area,Sultanahmet Core
+religious,8.260751354700513,1,category_area,Topkapi Palace
+religious,7.264298315522838,10,category_area,Uskudar Waterfront
+religious,7.206161517036852,6,category_area,Yildiz Palace
