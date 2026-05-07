@@ -96,19 +96,19 @@ def create_app() -> Flask:
     @app.get("/api/hotels/search")
     def hotels_search() -> Any:
         q = request.args.get("q", "")
-        limit = request.args.get("limit", "7", type=int) or 7
+        limit = request.args.get("limit", 7, type=int) or 7
         return jsonify(search_hotels(q, limit))
 
     @app.get("/api/pois/search")
     def pois_search() -> Any:
         q = request.args.get("q", "")
-        limit = request.args.get("limit", "7", type=int) or 7
+        limit = request.args.get("limit", 7, type=int) or 7
         return jsonify(search_pois(q, limit))
 
     @app.get("/api/search")
     def search() -> Any:
         q = request.args.get("q", "")
-        limit = request.args.get("limit", "10", type=int) or 10
+        limit = request.args.get("limit", 10, type=int) or 10
         return jsonify(search_everything(q, limit))
 
     @app.post("/api/forecast")

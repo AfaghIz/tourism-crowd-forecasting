@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
+
+import pandas as pd
 
 HOTELS: list[dict[str, Any]] = [
     {
@@ -104,64 +108,9 @@ HOTELS: list[dict[str, Any]] = [
     },
 ]
 
-POIS: list[dict[str, Any]] = [
-    {
-        "id": "blue-mosque",
-        "name": "Blue Mosque",
-        "category": "Landmark",
-        "lat": 41.0055,
-        "lng": 28.9768,
-        "blurb": "Iconic architecture and timeless silhouettes.",
-    },
-    {
-        "id": "hagia-sophia",
-        "name": "Hagia Sophia",
-        "category": "Museum",
-        "lat": 41.0086,
-        "lng": 28.9802,
-        "blurb": "A masterpiece of history, light, and scale.",
-    },
-    {
-        "id": "galata-tower",
-        "name": "Galata Tower",
-        "category": "Viewpoint",
-        "lat": 41.025,
-        "lng": 28.9744,
-        "blurb": "Climb for skyline views across Istanbul.",
-    },
-    {
-        "id": "grand-bazaar",
-        "name": "Grand Bazaar",
-        "category": "Shopping",
-        "lat": 41.0117,
-        "lng": 28.9682,
-        "blurb": "A maze of craft, textiles, and souvenirs.",
-    },
-    {
-        "id": "spice-bazaar",
-        "name": "Spice Bazaar",
-        "category": "Market",
-        "lat": 41.0179,
-        "lng": 28.965,
-        "blurb": "Smells, spices, and vibrant vendor stalls.",
-    },
-    {
-        "id": "istiklal",
-        "name": "İstiklal Street",
-        "category": "Street",
-        "lat": 41.0364,
-        "lng": 28.9822,
-        "blurb": "Tram rides, boutiques, and late-night energy.",
-    },
-    {
-        "id": "maiden-tower",
-        "name": "Maiden’s Tower",
-        "category": "Landmark",
-        "lat": 41.0445,
-        "lng": 29.0516,
-        "blurb": "A romantic island icon on the Bosphorus.",
-    },
-]
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+REAL_POI_DATASET = PROJECT_ROOT / "data" / "processed" / "otm_pois_model_ready_with_nlp_features_exclusions.csv"
+LEGACY_POI_DATASET = PROJECT_ROOT / "backend-python" / "otm_pois_model_ready.csv"
 
 
 def _normalize(input_str: str | None) -> str:
@@ -170,6 +119,72 @@ def _normalize(input_str: str | None) -> str:
 
 def _includes(haystack: str | None, query: str) -> bool:
     return haystack is not None and query in haystack.lower()
+
+
+def _choose_poi_dataset() -> Path | None:
+    if REAL_POI_DATASET.is_file():
+        return REAL_POI_DATASET
+    if LEGACY_POI_DATASET.is_file():
+        return LEGACY_POI_DATASET
+    return None
+
+
+def _poi_blurb(row: pd.Series) -> str:
+    parts: list[str] = []
+    category = str(row.get("category_clean", "") or "").strip()
+    area = str(row.get("query_area", "") or "").strip()
+    kinds = str(row.get("kinds", "") or "").strip()
+    if category:
+        parts.append(category.replace("_", " "))
+    if area:
+        parts.append(area)
+    elif kinds:
+        parts.append(kinds.split(",")[0].replace("_", " "))
+    return " · ".join(parts) if parts else "Istanbul point of interest."
+
+
+def _poi_record(row: pd.Series) -> dict[str, Any] | None:
+    poi_id = str(row.get("poi_id", "") or "").strip()
+    if not poi_id:
+        return None
+
+    lat = pd.to_numeric(row.get("lat"), errors="coerce")
+    lon = pd.to_numeric(row.get("lon"), errors="coerce")
+    if pd.isna(lat) or pd.isna(lon):
+        return None
+
+    display_name = str(row.get("display_name_en", "") or "").strip()
+    base_name = str(row.get("name", "") or "").strip()
+    name = display_name or base_name
+    if not name:
+        return None
+
+    category = str(row.get("category_clean", "") or "").strip()
+    category_label = category.replace("_", " ").title() if category else "Attraction"
+
+    return {
+        "id": poi_id,
+        "name": name,
+        "category": category_label,
+        "lat": float(lat),
+        "lng": float(lon),
+        "blurb": _poi_blurb(row),
+    }
+
+
+@lru_cache(maxsize=1)
+def _real_pois() -> list[dict[str, Any]]:
+    dataset = _choose_poi_dataset()
+    if dataset is None:
+        return []
+
+    df = pd.read_csv(dataset)
+    records: list[dict[str, Any]] = []
+    for _, row in df.iterrows():
+        record = _poi_record(row)
+        if record is not None:
+            records.append(record)
+    return records
 
 
 def list_hotels() -> list[dict[str, Any]]:
@@ -194,11 +209,12 @@ def search_hotels(query: str, limit: int) -> list[dict[str, Any]]:
 def search_pois(query: str, limit: int) -> list[dict[str, Any]]:
     q = _normalize(query)
     lim = max(1, limit)
+    pois = _real_pois()
     if not q:
-        return POIS[:lim]
+        return pois[:lim]
     out: list[dict[str, Any]] = []
-    for p in POIS:
-        hay = f'{p["name"]} {p["category"]}'
+    for p in pois:
+        hay = f'{p["name"]} {p["category"]} {p["blurb"]}'
         if _includes(hay, q):
             out.append(p)
             if len(out) >= lim:
@@ -209,25 +225,16 @@ def search_pois(query: str, limit: int) -> list[dict[str, Any]]:
 def search_everything(query: str, limit: int) -> list[dict[str, Any]]:
     lim = max(1, limit)
     q = _normalize(query)
+    pois = _real_pois()
 
     if not q:
-        results: list[dict[str, Any]] = []
-        for h in HOTELS[: min(4, lim)]:
-            results.append({"kind": "hotel", "hotel": h})
-        remaining = lim - len(results)
-        for p in POIS[: min(6, max(0, remaining))]:
-            results.append({"kind": "poi", "poi": p})
-        return results[:lim]
+        return [{"kind": "poi", "poi": p} for p in pois[:lim]]
 
-    results = []
-    for h in HOTELS:
-        hay = f'{h["name"]} {h["district"]} {" ".join(h["tags"])}'
-        if _includes(hay, q):
-            results.append({"kind": "hotel", "hotel": h})
-    for p in POIS:
-        hay = f'{p["name"]} {p["category"]}'
+    results: list[dict[str, Any]] = []
+    for p in pois:
+        hay = f'{p["name"]} {p["category"]} {p["blurb"]}'
         if _includes(hay, q):
             results.append({"kind": "poi", "poi": p})
-
-    results.sort(key=lambda r: r["kind"])
+            if len(results) >= lim:
+                break
     return results[:lim]

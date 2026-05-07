@@ -3,10 +3,8 @@ import 'leaflet/dist/leaflet.css'
 
 import { createMap } from './map/mapController'
 import {
-  searchHotels,
   searchEverything,
   fetchRecommendations,
-  type Hotel,
   type Poi,
   type RankedRecommendation,
   type SearchResult,
@@ -90,8 +88,8 @@ root.innerHTML = `
         <section class="card">
           <div class="flowBlock">
             <div class="fieldLabel">
-              <span>Location on the Istanbul map</span>
-              <span class="hint">step: GPS</span>
+              <span>Starting point</span>
+              <span class="hint">optional</span>
             </div>
             <div class="btnRow">
               <button id="useMyLocationBtn" class="btn btnPrimary btnInline" type="button">
@@ -128,43 +126,12 @@ root.innerHTML = `
           </div>
 
           <div class="cardTitleRow" style="margin-top: 14px">
-            <h2>Hotel & Location</h2>
-            <div class="hint">Map tap or search</div>
+            <h2>Map Selection</h2>
+            <div class="hint">Current location or map tap</div>
           </div>
 
-          <div class="tabs" role="tablist" aria-label="Selection mode">
-            <button id="tabHotels" class="tabBtn isActive" role="tab" aria-selected="true" type="button">
-              Hotels
-            </button>
-            <button id="tabLocation" class="tabBtn" role="tab" aria-selected="false" type="button">
-              Current location
-            </button>
-          </div>
-
-          <div id="panelHotels" class="section">
-            <div class="fieldLabel">
-              <span>Pick a hotel</span>
-              <span class="hint">prototype search</span>
-            </div>
-            <input
-              id="hotelPickerInput"
-              class="input"
-              type="text"
-              placeholder="Search hotels (e.g., Sultanahmet, Galata)"
-              autocomplete="off"
-              spellcheck="false"
-            />
-            <div id="hotelPickerResults" class="results" aria-live="polite" role="listbox"></div>
-          </div>
-
-          <div id="panelLocation" class="section" hidden>
-            <div class="fieldLabel">
-              <span>Use your current location</span>
-              <span class="hint">browser geolocation</span>
-            </div>
-            <div class="hint" style="margin-top:10px">
-              We request GPS on open. If you denied it, use the button above to retry.
-            </div>
+          <div class="hint" style="margin-top:10px">
+            Use your current location, tap the map, or search for a landmark below.
           </div>
 
           <div class="selectionBlock">
@@ -177,7 +144,7 @@ root.innerHTML = `
                 <i id="selectionChipDot" aria-hidden="true"></i>
                 <span id="selectionKindText">—</span>
               </div>
-              <div class="selectionLabel" id="selectionLabelText">Click map or choose a hotel</div>
+              <div class="selectionLabel" id="selectionLabelText">Search for a landmark or tap the map</div>
             </div>
             <div class="coords">
               <span>Coordinates</span>
@@ -188,26 +155,26 @@ root.innerHTML = `
 
         <section class="card">
           <div class="cardTitleRow">
-            <h2>Search</h2>
-            <div class="hint">Hotels + landmarks (prototype)</div>
+            <h2>Landmark Search</h2>
+            <div class="hint">POIs only</div>
           </div>
 
           <div class="fieldLabel">
-            <span>Find a place</span>
-            <span class="hint">POI or hotel</span>
+            <span>Find a landmark</span>
+            <span class="hint">anchor for alternatives</span>
           </div>
           <input
             id="globalSearchInput"
             class="input"
             type="text"
-            placeholder="Search or tap the map (e.g. Hagia Sophia, Galata Tower)…"
+            placeholder="Search landmarks like Hagia Sophia or Galata Tower…"
             autocomplete="off"
             spellcheck="false"
           />
           <div id="globalSearchResults" class="results" aria-live="polite" role="listbox"></div>
 
           <div class="hint" style="margin-top:10px">
-            API seam: replace mock functions like <code>searchEverything()</code> with real endpoints.
+            Pick a landmark to trigger crowd-aware alternative suggestions nearby.
           </div>
         </section>
       </div>
@@ -306,7 +273,7 @@ root.innerHTML = `
       </article>
       <article class="insightCard">
         <h3>What this UI proves</h3>
-        <p>Search, map interactions, and location-based selection are already production-style and ready for API wiring.</p>
+        <p>Landmark search, map interactions, and crowd-aware alternative suggestions are all wired into one product flow.</p>
       </article>
       <article class="insightCard">
         <h3>Navigation handoff</h3>
@@ -368,11 +335,7 @@ function getCategoryFilter(): string {
 
 function applyCategoryToSearchResults(items: SearchResult[]): SearchResult[] {
   const cat = getCategoryFilter()
-  if (!cat) return items
-  return items.filter((i) => {
-    if (i.kind !== 'poi') return true
-    return i.poi.category === cat
-  })
+  return items.filter((i) => i.kind === 'poi' && (!cat || i.poi.category === cat))
 }
 
 function googleMapsDirectionsUrl(sel: MapSelection): string {
@@ -529,7 +492,7 @@ function setChip(selection: AppSelection | null) {
   if (!selection) {
     dot.style.background = 'transparent'
     kindText.textContent = '—'
-    labelText.textContent = 'Click map or choose a hotel'
+    labelText.textContent = 'Search for a landmark or tap the map'
     coordsText.textContent = '—'
     hudKind.textContent = '—'
     hudCoord.textContent = '—'
@@ -608,30 +571,6 @@ function setChip(selection: AppSelection | null) {
     })
 }
 
-const tabHotels = el<HTMLButtonElement>('tabHotels')
-const tabLocation = el<HTMLButtonElement>('tabLocation')
-const panelHotels = el<HTMLDivElement>('panelHotels')
-const panelLocation = el<HTMLDivElement>('panelLocation')
-
-function setActiveTab(tab: 'hotels' | 'location') {
-  const hotelsActive = tab === 'hotels'
-  tabHotels.classList.toggle('isActive', hotelsActive)
-  tabHotels.setAttribute('aria-selected', String(hotelsActive))
-  tabHotels.style.opacity = hotelsActive ? '1' : '0.86'
-
-  tabLocation.classList.toggle('isActive', !hotelsActive)
-  tabLocation.setAttribute('aria-selected', String(!hotelsActive))
-  tabLocation.style.opacity = !hotelsActive ? '1' : '0.86'
-
-  panelHotels.hidden = !hotelsActive
-  panelLocation.hidden = hotelsActive
-}
-
-tabHotels.addEventListener('click', () => setActiveTab('hotels'))
-tabLocation.addEventListener('click', () => setActiveTab('location'))
-
-const hotelPickerInput = el<HTMLInputElement>('hotelPickerInput')
-const hotelPickerResults = el<HTMLDivElement>('hotelPickerResults')
 const globalSearchInput = el<HTMLInputElement>('globalSearchInput')
 const globalSearchResults = el<HTMLDivElement>('globalSearchResults')
 
@@ -785,28 +724,6 @@ function setLoading(container: HTMLDivElement) {
   container.appendChild(row)
 }
 
-function makeHotelRow(hotel: Hotel): HTMLElement {
-  const row = document.createElement('div')
-  row.className = 'resultItem'
-  row.setAttribute('role', 'option')
-  row.tabIndex = 0
-  row.dataset.id = hotel.id
-
-  row.innerHTML = `
-    <div class="resultBadge">Hotel</div>
-    <div class="resultMain">
-      <div class="resultName">${hotel.name}</div>
-      <div class="resultMeta">${hotel.district} • ${hotel.rating.toFixed(1)}★ • from $${hotel.priceFrom}</div>
-    </div>
-  `
-
-  row.addEventListener('click', () => selectHotel(hotel))
-  row.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') selectHotel(hotel)
-  })
-  return row
-}
-
 function makePoiRow(poi: Poi): HTMLElement {
   const row = document.createElement('div')
   row.className = 'resultItem'
@@ -839,16 +756,6 @@ const map = createMap(el<HTMLDivElement>('map'), {
   }
 })
 
-function selectHotel(hotel: Hotel) {
-  currentSelection = {
-    latlng: { lat: hotel.lat, lng: hotel.lng },
-    label: hotel.name,
-    kind: 'hotel'
-  }
-  setChip(currentSelection)
-  map.setMarker(currentSelection, { flyTo: true })
-}
-
 function selectPoi(poi: Poi) {
   currentSelection = {
     latlng: { lat: poi.lat, lng: poi.lng },
@@ -860,22 +767,6 @@ function selectPoi(poi: Poi) {
   map.setMarker(currentSelection, { flyTo: true })
 }
 
-function runHotelPicker(query: string) {
-  setLoading(hotelPickerResults)
-  searchHotels(query)
-    .then((hotels) => {
-      clearResults(hotelPickerResults)
-      if (hotels.length === 0) {
-        showEmpty(hotelPickerResults, 'Try a district like “Sultanahmet” or “Beyoğlu”.')
-        return
-      }
-      for (const hotel of hotels) hotelPickerResults.appendChild(makeHotelRow(hotel))
-    })
-    .catch(() => {
-      showEmpty(hotelPickerResults, 'Mock search failed. Reload the page.')
-    })
-}
-
 function debounce<T extends unknown[]>(fn: (...args: T) => void, ms: number) {
   let timer: number | null = null
   return (...args: T) => {
@@ -883,16 +774,6 @@ function debounce<T extends unknown[]>(fn: (...args: T) => void, ms: number) {
     timer = window.setTimeout(() => fn(...args), ms)
   }
 }
-
-const debouncedHotelPicker = debounce((value: string) => runHotelPicker(value), 220)
-
-hotelPickerInput.addEventListener('input', () => {
-  debouncedHotelPicker(hotelPickerInput.value)
-})
-
-hotelPickerInput.addEventListener('focus', () => {
-  if (!hotelPickerInput.value.trim()) runHotelPicker('')
-})
 
 globalSearchInput.addEventListener('input', () => {
   debouncedGlobalSearch(globalSearchInput.value)
@@ -914,8 +795,7 @@ const debouncedGlobalSearch = debounce((query: string) => {
         return
       }
       for (const item of filtered) {
-        if (item.kind === 'hotel') globalSearchResults.appendChild(makeHotelRow(item.hotel))
-        else globalSearchResults.appendChild(makePoiRow(item.poi))
+        if (item.kind === 'poi') globalSearchResults.appendChild(makePoiRow(item.poi))
       }
     })
     .catch(() => showEmpty(globalSearchResults, 'Search failed. Reload the page.'))
@@ -933,8 +813,7 @@ globalSearchInput.addEventListener('focus', () => {
           return
         }
         for (const item of filtered) {
-          if (item.kind === 'hotel') globalSearchResults.appendChild(makeHotelRow(item.hotel))
-          else globalSearchResults.appendChild(makePoiRow(item.poi))
+          if (item.kind === 'poi') globalSearchResults.appendChild(makePoiRow(item.poi))
         }
       })
       .catch(() => showEmpty(globalSearchResults, 'Suggestions failed.'))
@@ -1105,8 +984,6 @@ initForecastSheetCollapse()
 // Ask for location permission right away (for “open app → GPS → recommendations” flow).
 // If denied, the user can still search or tap the map.
 window.setTimeout(() => {
-  setActiveTab('location')
   startGeolocation(locationStatus)
 }, 160)
 setChip(null)
-runHotelPicker('')
