@@ -31,4 +31,5 @@ notebooks/_data/.DS_Store
 backend/.DS_Store
 data/.DS_Store
 data/processed/otm_crowdindex_workflow_matrix_weekly.csv
+data/processed/otm_crowdindex_weekly_combined.csv
 outputs/
