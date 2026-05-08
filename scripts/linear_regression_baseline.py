@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import Lasso, LinearRegression, Ridge
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
@@ -94,6 +94,8 @@ def evaluate_model(name: str, model: Pipeline, X_train: pd.DataFrame, X_test: pd
     rmse_test = float(np.sqrt(mean_squared_error(y_test, pred_test)))
     mae_train = float(mean_absolute_error(y_train, pred_train))
     mae_test = float(mean_absolute_error(y_test, pred_test))
+    r2_train = float(r2_score(y_train, pred_train))
+    r2_test = float(r2_score(y_test, pred_test))
 
     preprocessor = model.named_steps["preprocessor"]
     regressor = model.named_steps["regressor"]
@@ -126,6 +128,8 @@ def evaluate_model(name: str, model: Pipeline, X_train: pd.DataFrame, X_test: pd
         "rmse_test": rmse_test,
         "mae_train": mae_train,
         "mae_test": mae_test,
+        "r2_train": r2_train,
+        "r2_test": r2_test,
         "split": "chronological",
         "test_size": TEST_SIZE,
         "random_state": RANDOM_STATE,

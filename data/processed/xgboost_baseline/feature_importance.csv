@@ -1,0 +1,12 @@
+model,feature,importance
+XGBoost,trend_demand,0.49054325
+XGBoost,temp_avg,0.24092542
+XGBoost,temp_max,0.14919841
+XGBoost,temp_min,0.07330386
+XGBoost,season_summer,0.025317315
+XGBoost,precipitation,0.01257852
+XGBoost,season_spring,0.004155667
+XGBoost,month,0.0022934878
+XGBoost,week_of_year,0.0014858469
+XGBoost,is_holiday,0.00012545711
+XGBoost,season_winter,7.270167e-05

@@ -1,0 +1,31 @@
+{
+  "input_path": "/Users/imrandurmus/Code/projects/tourism-crowd-forecasting/data/processed/model_dataset_with_holidays.csv",
+  "feature_columns": [
+    "trend_demand",
+    "temp_max",
+    "temp_min",
+    "temp_avg",
+    "precipitation",
+    "month",
+    "week_of_year",
+    "season_spring",
+    "season_summer",
+    "season_winter",
+    "is_holiday"
+  ],
+  "target_column": "crowd_index",
+  "lookback_weeks": 8,
+  "test_size": 0.2,
+  "epochs": 250,
+  "epochs_trained": 191,
+  "batch_size": 16,
+  "learning_rate": 0.001,
+  "validation_split": 0.15,
+  "random_state": 42,
+  "train_sequence_rows": 201,
+  "test_sequence_rows": 52,
+  "train_date_min": "2021-03-07 00:00:00",
+  "train_date_max": "2025-01-05 00:00:00",
+  "test_date_min": "2025-01-12 00:00:00",
+  "test_date_max": "2026-01-04 00:00:00"
+}

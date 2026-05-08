@@ -1,2 +1,2 @@
-model,rmse_train,rmse_test,mae_train,mae_test,split,test_size,random_state
-LightGBM Regressor,0.018400788442419044,0.01520310766423863,0.009729530490744364,0.010713895607397429,chronological,0.2,42
+model,rmse_train,rmse_test,mae_train,mae_test,r2_train,r2_test,split,test_size,random_state
+LightGBM Regressor,0.018400788442419044,0.01520310766423863,0.009729530490744364,0.010713895607397429,0.983336125433368,0.9863385087443234,chronological,0.2,42

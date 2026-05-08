@@ -1,0 +1,2 @@
+model,rmse_train,rmse_test,mae_train,mae_test,r2_train,r2_test,split,test_size,random_state,n_estimators,max_depth
+Random Forest,0.011258832209026504,0.01760572495946288,0.006632288551847417,0.012487532716407911,0.9937613615539447,0.9816793367446411,chronological,0.2,42,200,8

@@ -1,0 +1,2 @@
+model,rmse_train,rmse_test,mae_train,mae_test,r2_train,r2_test,split,test_size,lookback_weeks,epochs_requested,epochs_trained,batch_size,learning_rate,validation_split,random_state
+LSTM,0.026339526369645615,0.043456119088447286,0.015801263973116875,0.032337743788957596,0.964873194694519,0.8883817195892334,chronological_sequence,0.2,8,250,191,16,0.001,0.15,42

@@ -1,0 +1,2 @@
+model,rmse_train,rmse_test,mae_train,mae_test,r2_train,r2_test,split,test_size,random_state,n_estimators,learning_rate,max_depth
+XGBoost,0.0009928908720423478,0.017767267171817657,0.0007351412783820622,0.013036646121430571,0.9999514816347304,0.9813415899857085,chronological,0.2,42,300,0.05,6

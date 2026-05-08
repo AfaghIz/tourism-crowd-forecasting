@@ -1,0 +1,17 @@
+{
+  "model": "Manual baseline",
+  "mae_train": 5.181794600261692,
+  "rmse_train": 5.638102272002072,
+  "r2_train": -9.188198137626891,
+  "mae_test": 3.907978225464915,
+  "rmse_test": 4.646803287317616,
+  "r2_test": -9.398297687085305,
+  "split": "random_labeled_train_test_split",
+  "test_size": 0.2,
+  "random_state": 42,
+  "train_rows": 127,
+  "test_rows": 32,
+  "labeled_rows": 159,
+  "feature_count": 0,
+  "manual_eval_basis": "fallback_simulation_without_direct_wiki_signal"
+}

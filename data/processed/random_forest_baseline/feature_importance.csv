@@ -1,0 +1,12 @@
+model,feature,importance
+Random Forest,trend_demand,0.5513474760063024
+Random Forest,temp_min,0.17876932284013908
+Random Forest,temp_avg,0.1293008673803993
+Random Forest,temp_max,0.11309797592521549
+Random Forest,precipitation,0.01667401387898544
+Random Forest,week_of_year,0.005949652040006958
+Random Forest,season_summer,0.0022089794287747503
+Random Forest,month,0.0016735228444758304
+Random Forest,season_spring,0.00038606660814409846
+Random Forest,season_winter,0.0003141791272709894
+Random Forest,is_holiday,0.0002779439202858565
