@@ -56,7 +56,7 @@ root.innerHTML = `
 
         <div class="apiPill" title="Backend API (Flask)">
           <div class="apiDot" aria-hidden="true"></div>
-          <span>Flask API (localhost:8080)</span>
+          <span>${import.meta.env.VITE_API_BASE_URL || 'Render API'}</span>
         </div>
       </div>
     </div>
@@ -104,9 +104,9 @@ root.innerHTML = `
                 </div>
                 <select id="filterCategory" class="select" aria-label="Filter by place category">
                   ${POI_CATEGORIES.map(
-                    (c) =>
-                      `<option value="${c}">${c === 'all' ? 'All categories' : c}</option>`
-                  ).join('')}
+  (c) =>
+    `<option value="${c}">${c === 'all' ? 'All categories' : c}</option>`
+).join('')}
                 </select>
               </div>
               <div>

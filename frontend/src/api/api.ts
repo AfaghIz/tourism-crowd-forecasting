@@ -40,7 +40,7 @@ export type ForecastResponse = {
 
 const API_BASE =
   (import.meta as any).env?.VITE_API_BASE_URL?.toString?.().trim?.() ||
-  'http://localhost:8080'
+  'https://tourism-crowd-forecasting.onrender.com'
 
 async function getJson<T>(path: string, params?: Record<string, string | number | undefined>) {
   const url = new URL(path, API_BASE)
