@@ -144,6 +144,10 @@ def _poi_blurb(row: pd.Series) -> str:
 
 
 def _poi_record(row: pd.Series) -> dict[str, Any] | None:
+    excluded = pd.to_numeric(row.get("exclude_from_recommendation"), errors="coerce")
+    if not pd.isna(excluded) and int(excluded) == 1:
+        return None
+
     poi_id = str(row.get("poi_id", "") or "").strip()
     if not poi_id:
         return None
@@ -179,6 +183,21 @@ def _real_pois() -> list[dict[str, Any]]:
         return []
 
     df = pd.read_csv(dataset)
+    sort_cols: list[str] = []
+    ascending: list[bool] = []
+    for col, asc in [
+        ("has_direct_wiki_signal", False),
+        ("wiki_pageviews_total", False),
+        ("wiki_popularity_score", False),
+        ("rate", False),
+        ("dist_from_query_center_m", True),
+    ]:
+        if col in df.columns:
+            sort_cols.append(col)
+            ascending.append(asc)
+    if sort_cols:
+        df = df.sort_values(sort_cols, ascending=ascending, na_position="last").reset_index(drop=True)
+
     records: list[dict[str, Any]] = []
     for _, row in df.iterrows():
         record = _poi_record(row)
@@ -189,6 +208,10 @@ def _real_pois() -> list[dict[str, Any]]:
 
 def list_hotels() -> list[dict[str, Any]]:
     return HOTELS
+
+
+def list_pois(limit: int) -> list[dict[str, Any]]:
+    return _real_pois()[: max(1, limit)]
 
 
 def search_hotels(query: str, limit: int) -> list[dict[str, Any]]:

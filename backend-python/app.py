@@ -8,7 +8,7 @@ from typing import Any
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 
-from catalog import list_hotels, search_everything, search_hotels, search_pois
+from catalog import list_hotels, list_pois, search_everything, search_hotels, search_pois
 from forecast_service import ForecastService
 from recommendation.pipeline import recommend as pipeline_recommend
 from weekly_model import IstanbulWeeklyModelRepository
@@ -17,7 +17,8 @@ DEFAULT_ORIGINS = (
     "http://localhost:5173,"
     "http://127.0.0.1:5173,"
     "http://localhost:4173,"
-    "http://127.0.0.1:4173"
+    "http://127.0.0.1:4173,"
+    "https://afaghiz.github.io"
 )
 
 ALLOWED_KINDS = frozenset({"hotel", "poi", "location", "map"})
@@ -64,6 +65,20 @@ def _validate_forecast_body(body: Any) -> tuple[dict[str, Any] | None, list[str]
         except (TypeError, ValueError):
             errors.append("horizonWeeks must be an integer")
 
+    basis_week_start = body.get("basisWeekStart")
+    if basis_week_start is not None:
+        if not isinstance(basis_week_start, str) or not basis_week_start.strip():
+            errors.append("basisWeekStart must be a non-empty ISO date string when provided")
+        else:
+            body = {**body, "basisWeekStart": basis_week_start.strip()}
+
+    entity_id = body.get("entityId")
+    if entity_id is not None:
+        if not isinstance(entity_id, str) or not entity_id.strip():
+            errors.append("entityId must be a non-empty string when provided")
+        else:
+            body = {**body, "entityId": entity_id.strip()}
+
     if errors:
         return None, errors
 
@@ -105,6 +120,11 @@ def create_app() -> Flask:
         limit = request.args.get("limit", 7, type=int) or 7
         return jsonify(search_pois(q, limit))
 
+    @app.get("/api/pois")
+    def pois() -> Any:
+        limit = request.args.get("limit", 60, type=int) or 60
+        return jsonify(list_pois(limit))
+
     @app.get("/api/search")
     def search() -> Any:
         q = request.args.get("q", "")
@@ -118,6 +138,10 @@ def create_app() -> Flask:
         if req is None:
             return jsonify({"errors": errs}), 400
         return jsonify(forecast_svc.forecast(req))
+
+    @app.get("/api/forecast-periods")
+    def forecast_periods() -> Any:
+        return jsonify(forecast_svc.period_options())
 
     @app.post("/api/recommendations")
     def recommendations() -> Any:
@@ -168,12 +192,17 @@ def create_app() -> Flask:
         top_k = int(body.get("topK", body.get("top_k", 10)))
         inc_it = bool(body.get("includeItinerary", body.get("include_itinerary", False)))
         anchor_poi_id = body.get("anchorPoiId", body.get("anchor_poi_id"))
+        entity_id = body.get("entityId", body.get("entity_id"))
         anchor_radius_km = float(body.get("anchorRadiusKm", body.get("anchor_radius_km", 3.0)))
 
         if not isinstance(user_profile, dict) and user_profile is not None:
             return jsonify({"errors": ["userProfile must be an object when provided"]}), 400
         if anchor_poi_id is not None and not str(anchor_poi_id).strip():
             return jsonify({"errors": ["anchorPoiId must be a non-empty string when provided"]}), 400
+        if anchor_poi_id is None and entity_id is not None:
+            if not isinstance(entity_id, str) or not entity_id.strip():
+                return jsonify({"errors": ["entityId must be a non-empty string when provided"]}), 400
+            anchor_poi_id = entity_id.strip()
 
         allowed = body.get("allowedCategories") or body.get("allowed_categories")
         if allowed is not None and not isinstance(allowed, list):

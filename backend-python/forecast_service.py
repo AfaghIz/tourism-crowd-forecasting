@@ -1,14 +1,45 @@
 from __future__ import annotations
 
 import math
+from datetime import datetime
 from typing import Any
 
+from recommendation.crowd_scores import get_registered_provider
+from recommendation.explanation_engine import crowd_level_label
 from weekly_model import IstanbulWeeklyModelRepository, WeeklyRow
 
 
 class ForecastService:
     def __init__(self, weekly_model: IstanbulWeeklyModelRepository) -> None:
         self._weekly = weekly_model
+
+    def period_options(self) -> list[dict[str, str]]:
+        if not self._weekly.is_loaded():
+            return []
+
+        rows = self._weekly.all_rows()
+        latest = rows[-1]
+        options: list[dict[str, str]] = [
+            {
+                "id": latest.week_start.isoformat(),
+                "label": f"Latest modeled week ({latest.week_start.isoformat()})",
+                "level": latest.crowd_level,
+            }
+        ]
+
+        for level in ("Low", "Medium", "High"):
+            row = _latest_row_for_level(rows, level)
+            if row is None:
+                continue
+            option = {
+                "id": row.week_start.isoformat(),
+                "label": f"Recent {level.lower()} week ({row.week_start.isoformat()})",
+                "level": row.crowd_level,
+            }
+            if option["id"] not in {item["id"] for item in options}:
+                options.append(option)
+
+        return options
 
     def forecast(self, req: dict[str, Any]) -> dict[str, Any]:
         if self._weekly.is_loaded():
@@ -17,17 +48,32 @@ class ForecastService:
 
     def _city_wide_from_notebook(self, req: dict[str, Any]) -> dict[str, Any]:
         rows = self._weekly.all_rows()
-        latest = rows[-1]
+        selected_index = _resolve_row_index(rows, req.get("basisWeekStart"))
+        selected = rows[selected_index]
         horizon = req.get("horizonWeeks")
         if horizon is None:
             horizon = 4
         horizon = max(1, min(52, int(horizon)))
 
-        score = int(round(min(1.0, max(0.0, latest.crowd_index)) * 100.0))
-        score = max(1, min(99, score))
+        city_score_01 = min(1.0, max(0.0, selected.crowd_index))
+        city_score = _to_pct_score(city_score_01)
+        city_level = selected.crowd_level
 
-        trend = _build_trend(rows, horizon)
-        basis = latest.week_start.isoformat()
+        poi_id = str(req.get("entityId") or "").strip()
+        poi_score_01 = _resolve_poi_score(poi_id, selected.week_start.isoformat())
+        if poi_score_01 is not None:
+            score = _to_pct_score(poi_score_01)
+            level = crowd_level_label(poi_score_01).title()
+            score_scope = "poi_modeled"
+            score_label = "POI crowd estimate"
+        else:
+            score = city_score
+            level = city_level
+            score_scope = "city_wide"
+            score_label = "City-wide crowd estimate"
+
+        trend = _build_trend(rows, horizon, selected_index)
+        basis = selected.week_start.isoformat()
         interpretation = (
             "City-wide weekly pressure for Istanbul (trained pipeline: trends + weather + time). "
             "Same index for every place on the map — not measured crowds at this venue."
@@ -38,10 +84,15 @@ class ForecastService:
             "kind": req["kind"],
             "latlng": {"lat": latlng["lat"], "lng": latlng["lng"]},
             "score": score,
-            "level": latest.crowd_level,
+            "level": level,
             "trend": trend,
             "forecastScope": "city_wide",
+            "scoreScope": score_scope,
+            "scoreLabel": score_label,
+            "cityScore": city_score,
+            "cityLevel": city_level,
             "basisWeekStart": basis,
+            "basisLabel": f"Modeled week of {basis}",
             "interpretation": interpretation,
         }
 
@@ -68,10 +119,9 @@ class ForecastService:
         }
 
 
-def _build_trend(rows: list[WeeklyRow], horizon_weeks: int) -> str:
+def _build_trend(rows: list[WeeklyRow], horizon_weeks: int, end: int) -> str:
     if len(rows) < 2:
         return "Insufficient history for a trend line."
-    end = len(rows) - 1
     start = max(0, end - horizon_weeks)
     total = 0.0
     n = 0
@@ -81,13 +131,29 @@ def _build_trend(rows: list[WeeklyRow], horizon_weeks: int) -> str:
     if n == 0:
         return "Baseline for the selected horizon."
     prior_mean = total / n
-    latest = rows[end].crowd_index
-    delta = latest - prior_mean
+    current = rows[end].crowd_index
+    delta = current - prior_mean
     if delta > 0.03:
         return f"Above the prior ~{n}-week average (city-wide index rising)."
     if delta < -0.03:
         return f"Below the prior ~{n}-week average (city-wide index softer)."
     return f"Near the prior ~{n}-week average for Istanbul."
+
+
+def _resolve_row_index(rows: list[WeeklyRow], requested_basis: Any) -> int:
+    if isinstance(requested_basis, str):
+        wanted = requested_basis.strip()
+        for idx, row in enumerate(rows):
+            if row.week_start.isoformat() == wanted:
+                return idx
+    return len(rows) - 1
+
+
+def _latest_row_for_level(rows: list[WeeklyRow], level: str) -> WeeklyRow | None:
+    for row in reversed(rows):
+        if row.crowd_level == level:
+            return row
+    return None
 
 
 def _estimate_score(kind: str, lat: float, lng: float) -> int:
@@ -97,3 +163,21 @@ def _estimate_score(kind: str, lat: float, lng: float) -> int:
     raw = 34 + kind_boost + ((lat_factor + lng_factor) % 44)
     rounded = int(round(raw))
     return max(1, min(99, rounded))
+
+
+def _to_pct_score(value_01: float) -> int:
+    score = int(round(min(1.0, max(0.0, value_01)) * 100.0))
+    return max(1, min(99, score))
+
+
+def _resolve_poi_score(poi_id: str, basis_week_start: str) -> float | None:
+    if not poi_id:
+        return None
+    provider = get_registered_provider()
+    if provider is None:
+        return None
+    try:
+        timestamp = datetime.fromisoformat(basis_week_start)
+        return float(provider.get_crowd_score(poi_id, timestamp))
+    except Exception:
+        return None
