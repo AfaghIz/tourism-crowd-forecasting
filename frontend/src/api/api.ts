@@ -10,6 +10,8 @@ export type Hotel = {
   priceFrom: number
   tags: string[]
   blurb: string
+  /** Optional photo URL for list thumbnails (e.g. Wikimedia Commons). */
+  photoUrl?: string
 }
 
 export type Poi = {
@@ -19,6 +21,8 @@ export type Poi = {
   lat: number
   lng: number
   blurb: string
+  /** Optional photo URL for list thumbnails (e.g. Wikimedia Commons). */
+  photoUrl?: string
 }
 
 export type SearchResult =
@@ -41,6 +45,44 @@ export type ForecastResponse = {
 const API_BASE =
   (import.meta as any).env?.VITE_API_BASE_URL?.toString?.().trim?.() ||
   'http://localhost:8080'
+
+function isWikimediaHttps(url: string): boolean {
+  try {
+    const u = new URL(url)
+    if (u.protocol !== 'https:') return false
+    const h = u.hostname
+    return h === 'upload.wikimedia.org' || h.endsWith('.wikimedia.org')
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Proxied Google Places photo (see ``GET /api/place-photo``). Safe Wikimedia ``fallbackUrl``
+ * enables server redirect when the API key is unset or lookup fails.
+ */
+export function placePhotoProxyUrl(opts: {
+  name: string
+  lat?: number
+  lng?: number
+  fallbackUrl?: string
+}): string {
+  const url = new URL('/api/place-photo', API_BASE)
+  url.searchParams.set('name', opts.name)
+  if (
+    opts.lat != null &&
+    opts.lng != null &&
+    Number.isFinite(opts.lat) &&
+    Number.isFinite(opts.lng)
+  ) {
+    url.searchParams.set('lat', String(opts.lat))
+    url.searchParams.set('lng', String(opts.lng))
+  }
+  if (opts.fallbackUrl && isWikimediaHttps(opts.fallbackUrl)) {
+    url.searchParams.set('fallback', opts.fallbackUrl)
+  }
+  return url.toString()
+}
 
 async function getJson<T>(path: string, params?: Record<string, string | number | undefined>) {
   const url = new URL(path, API_BASE)

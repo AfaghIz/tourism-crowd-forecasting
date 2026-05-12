@@ -3,9 +3,9 @@ import 'leaflet/dist/leaflet.css'
 
 import { createMap } from './map/mapController'
 import {
-  searchHotels,
   searchEverything,
   fetchRecommendations,
+  placePhotoProxyUrl,
   type Hotel,
   type Poi,
   type RankedRecommendation,
@@ -13,8 +13,65 @@ import {
   forecast
 } from './api/api'
 import type { LatLng, MapSelection, SelectionKind } from './domain/types'
+import { createDirectionsOpener } from './nav/googleDirections'
+import { rankLocalPoisNear } from './nearby/localRecommendations'
+import { thumbUrlForPoiId } from './api/mockApi'
+import {
+  TRENDING_ISTANBUL,
+  HIDDEN_GEMS,
+  escapeHtml,
+  recentSearchesAdd,
+  recentSearchesGet,
+  favoriteToggle,
+  favoriteHas,
+  categoryIcon,
+  gradientThumbStyle,
+  recommendationMicroBadges,
+  bestTimeShort,
+  crowdDotClass,
+  hotelCardBadges,
+  poiCardBadges,
+  type DiscoveryItem,
+} from './ux/premiumHelpers'
 
 const DEFAULT_CENTER: LatLng = { lat: 41.0082, lng: 28.9784 }
+
+/** Forecast API horizon when no UI control (matches former default “Next ~4 weeks”). */
+const FORECAST_HORIZON_WEEKS = 4
+
+/** YouTube clip ids for the small search-column preview stack (muted autoplay). */
+const VR_CLIPS: readonly { id: string; iframeTitle: string }[] = [
+  {
+    id: 'Ko_pCVbUDJM',
+    iframeTitle: 'Istanbul Bosphorous 360 VR Tour'
+  },
+  {
+    id: 'x7kuv3rd5BY',
+    iframeTitle: 'Istanbul travel video'
+  },
+  {
+    id: 'cvmw60WqJ0k',
+    iframeTitle: 'Istanbul travel video'
+  },
+  {
+    id: '4ZXUSgLRNEU',
+    iframeTitle: 'Istanbul travel video'
+  },
+  {
+    id: 'JzTBLwZq_W0',
+    iframeTitle: 'Istanbul travel video'
+  },
+  {
+    id: 'ElRgievF8_0',
+    iframeTitle: 'Istanbul travel video'
+  }
+]
+
+/** Muted autoplay embeds for the search column (YouTube requires mute for autoplay). */
+const SIDE_VIDEO_STACK_HTML = VR_CLIPS.map((clip) => {
+  const src = `https://www.youtube.com/embed/${encodeURIComponent(clip.id)}?autoplay=1&mute=1&loop=1&playlist=${encodeURIComponent(clip.id)}&playsinline=1&controls=0&modestbranding=1&rel=0`
+  return `<div class="sideVideoTile"><iframe class="sideVideoIframe" src="${src}" title="${escapeHtml(clip.iframeTitle)}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`
+}).join('')
 
 const POI_CATEGORIES = [
   'all',
@@ -25,6 +82,26 @@ const POI_CATEGORIES = [
   'Market',
   'Street'
 ] as const
+
+type PoiCategoryBubble = (typeof POI_CATEGORIES)[number]
+
+/** Distinctive line icons for trip-panel category chips (not generic emoji font). */
+const CATEGORY_BUBBLE_SVG: Record<PoiCategoryBubble, string> = {
+  all: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" aria-hidden="true"><path d="M12 2.5v3.5M12 18v3.5M2.5 12h3.5M18 12h3.5"/><path d="M5.2 5.2l2.5 2.5M16.3 16.3l2.5 2.5M5.2 18.8l2.5-2.5M16.3 7.7l2.5-2.5"/><circle cx="12" cy="12" r="1.75" fill="currentColor" stroke="none"/></svg>`,
+  Landmark: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M5 20V11l7-6 7 6v9M8.5 20v-8M12 20V8.5M15.5 20v-8"/><path d="M12 6.5 9.5 11h5L12 6.5z"/></svg>`,
+  Museum: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="6" width="14" height="12" rx="1.2"/><path d="M8 15.5 11 11l2.5 3 2.5-5 3 6.5"/></svg>`,
+  Viewpoint: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18L12 5.5 3 20z"/><circle cx="17.5" cy="7" r="2.3" fill="currentColor" stroke="none"/></svg>`,
+  Shopping: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 9V7.5a3.5 3.5 0 0 1 7 0V9"/><path d="M5.5 9h13l-1.2 10.5H6.7L5.5 9z"/><path d="M9 14h6" stroke-linecap="round"/></svg>`,
+  Market: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linejoin="round" aria-hidden="true"><path d="M6 10h12l-1.1 9H7.1L6 10z"/><path d="M9 10V8a3 3 0 0 1 6 0v2"/><ellipse cx="12" cy="7.5" rx="5" ry="2.5"/><path d="M8 14h8" stroke-linecap="round"/></svg>`,
+  Street: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19h16L14.2 4H9.8L4 19z"/><path d="M12 7.5v11" stroke-dasharray="2.2 3"/></svg>`
+}
+
+const CATEGORY_BUBBLES_HTML = POI_CATEGORIES.map((c) => {
+  const icon = CATEGORY_BUBBLE_SVG[c]
+  const label = c === 'all' ? 'All' : c
+  const isAll = c === 'all'
+  return `<button type="button" class="categoryBubble${isAll ? ' isActive' : ''}" data-category="${c}" aria-pressed="${String(isAll)}" aria-label="Category: ${label}"><span class="categoryBubble__ring" aria-hidden="true"><span class="categoryBubble__ic">${icon}</span></span><span class="categoryBubble__lbl">${label}</span></button>`
+}).join('')
 
 function areaTrafficLevel(crowdScore: number): 'Low' | 'Medium' | 'High' {
   const adj = Math.min(99, Math.max(1, crowdScore + Math.round(crowdScore * 0.08) - 6))
@@ -41,196 +118,87 @@ const root = document.querySelector<HTMLDivElement>('#app')
 if (!root) throw new Error('Missing #app mount element')
 
 root.innerHTML = `
-  <div class="page">
-    <div class="topbar">
-      <div class="topbarInner">
-        <div class="brand">
-          <div class="brandMark" aria-hidden="true"></div>
-          <div class="brandText">
-            <h1>Istanbul Crowd Compass</h1>
-            <p class="brandTagline">
-              Pick a place on the map, see crowd context for your window, then open directions in Google Maps.
-            </p>
-          </div>
-        </div>
-
-        <div class="apiPill" title="Backend API (Flask)">
-          <div class="apiDot" aria-hidden="true"></div>
-          <span>Flask API (localhost:8080)</span>
-        </div>
+  <div class="page page--premium page--retro">
+    <div id="istanbulHero" class="istanbulHero" role="dialog" aria-modal="true" aria-label="Welcome">
+      <div class="istanbulHero__bg" aria-hidden="true"></div>
+      <iframe
+        class="istanbulHero__map"
+        title="İstanbul 3B haritası — etkileşimli önizleme"
+        src="https://3bistanbul.ibb.gov.tr/"
+        loading="eager"
+        referrerpolicy="no-referrer-when-downgrade"
+      ></iframe>
+      <div class="istanbulHero__scrim" aria-hidden="true"></div>
+      <div class="istanbulHero__crt" aria-hidden="true"></div>
+      <div class="istanbulHero__content">
+        <p class="istanbulHero__eyebrow">Insert coin · demo</p>
+        <h2 class="istanbulHero__title">Istanbul<br /><span class="istanbulHero__titleSub">Crowd Quest</span></h2>
+        <p class="istanbulHero__sub">Crowd signals, map pins, and directions — arcade edition.</p>
+        <button type="button" class="istanbulHero__cta btn btnPrimary" id="istanbulHeroDismiss">PRESS START — MAP</button>
       </div>
     </div>
 
-    <div class="heroStatsOuter" role="region" aria-label="Product highlights">
-    <section class="heroStats">
-      <article class="statCard">
-        <div class="statLabel">Coverage</div>
-        <div class="statValue">260 Weeks</div>
-        <div class="statMeta">Historical demand-weather timeline</div>
-      </article>
-      <article class="statCard">
-        <div class="statLabel">Baseline Model</div>
-        <div class="statValue">R2 0.9813</div>
-        <div class="statMeta">Random Forest benchmark</div>
-      </article>
-      <article class="statCard">
-        <div class="statLabel">Experience</div>
-        <div class="statValue">Live Map + Search</div>
-        <div class="statMeta">Matches WEBSITE_UX_FLOW target journey</div>
-      </article>
-    </section>
-    </div>
+    <header class="topbar topbar--slim" role="banner">
+      <h1 class="topbar__title">İstanbul Crowd Compass</h1>
+    </header>
 
     <div class="layout">
-      <div class="panel">
-        <section class="card">
-          <div class="flowBlock">
-            <div class="fieldLabel">
-              <span>Location on the Istanbul map</span>
-              <span class="hint">step: GPS</span>
-            </div>
-            <div class="btnRow">
-              <button id="useMyLocationBtn" class="btn btnPrimary btnInline" type="button">
-                Use my location
-              </button>
-            </div>
-            <div id="locationStatus" class="hint" style="margin-top: 8px"></div>
-
-            <div class="filterGrid">
-              <div>
-                <div class="fieldLabel">
-                  <span>Category</span>
-                  <span class="hint">optional</span>
-                </div>
-                <select id="filterCategory" class="select" aria-label="Filter by place category">
-                  ${POI_CATEGORIES.map(
-                    (c) =>
-                      `<option value="${c}">${c === 'all' ? 'All categories' : c}</option>`
-                  ).join('')}
-                </select>
-              </div>
-              <div>
-                <div class="fieldLabel">
-                  <span>When</span>
-                  <span class="hint">forecast window</span>
-                </div>
-                <select id="filterWhen" class="select" aria-label="Planning time horizon">
-                  <option value="4">Next ~4 weeks (default)</option>
-                  <option value="2">Closer window (~2 weeks)</option>
-                  <option value="8">Longer view (~8 weeks)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div class="cardTitleRow" style="margin-top: 14px">
-            <h2>Hotel & Location</h2>
-            <div class="hint">Map tap or search</div>
-          </div>
-
-          <div class="tabs" role="tablist" aria-label="Selection mode">
-            <button id="tabHotels" class="tabBtn isActive" role="tab" aria-selected="true" type="button">
-              Hotels
-            </button>
-            <button id="tabLocation" class="tabBtn" role="tab" aria-selected="false" type="button">
-              Current location
-            </button>
-          </div>
-
-          <div id="panelHotels" class="section">
-            <div class="fieldLabel">
-              <span>Pick a hotel</span>
-              <span class="hint">prototype search</span>
-            </div>
-            <input
-              id="hotelPickerInput"
-              class="input"
-              type="text"
-              placeholder="Search hotels (e.g., Sultanahmet, Galata)"
-              autocomplete="off"
-              spellcheck="false"
-            />
-            <div id="hotelPickerResults" class="results" aria-live="polite" role="listbox"></div>
-          </div>
-
-          <div id="panelLocation" class="section" hidden>
-            <div class="fieldLabel">
-              <span>Use your current location</span>
-              <span class="hint">browser geolocation</span>
-            </div>
-            <div class="hint" style="margin-top:10px">
-              We request GPS on open. If you denied it, use the button above to retry.
-            </div>
-          </div>
-
-          <div class="selectionBlock">
-            <div class="fieldLabel" style="margin-top:14px">
-              <span>Selection</span>
-              <span class="hint">syncs with map marker</span>
-            </div>
-            <div class="selectionLine">
-              <div class="chip" id="selectionChip">
-                <i id="selectionChipDot" aria-hidden="true"></i>
-                <span id="selectionKindText">—</span>
-              </div>
-              <div class="selectionLabel" id="selectionLabelText">Click map or choose a hotel</div>
-            </div>
-            <div class="coords">
-              <span>Coordinates</span>
-              <span id="selectionCoordsText">—</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="card">
+      <div class="panel panel--search" id="explorePanel">
+        <section class="card card--search card--lead">
           <div class="cardTitleRow">
             <h2>Search</h2>
-            <div class="hint">Hotels + landmarks (prototype)</div>
           </div>
 
-          <div class="fieldLabel">
-            <span>Find a place</span>
-            <span class="hint">POI or hotel</span>
-          </div>
-          <input
-            id="globalSearchInput"
-            class="input"
-            type="text"
-            placeholder="Search or tap the map (e.g. Hagia Sophia, Galata Tower)…"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <div id="globalSearchResults" class="results" aria-live="polite" role="listbox"></div>
-
-          <div class="hint" style="margin-top:10px">
-            API seam: replace mock functions like <code>searchEverything()</code> with real endpoints.
+          <div class="searchShell">
+            <label class="srOnly" for="globalSearchInput">Find a place</label>
+            <div class="searchInputRow">
+              <span class="searchGlyph" aria-hidden="true">⌕</span>
+              <input
+                id="globalSearchInput"
+                class="input input--search"
+                type="text"
+                placeholder="Places, districts, landmarks…"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+            <div id="globalSearchResults" class="results results--rich" aria-live="polite" role="listbox"></div>
           </div>
         </section>
+        <div class="sideVideoStack" aria-label="Istanbul video clips">${SIDE_VIDEO_STACK_HTML}</div>
       </div>
 
-      <section class="mapWrap mapStage">
+      <div class="mapColumn">
+        <section class="mapWrap mapStage" id="mapStage">
         <div id="map" class="map" aria-label="Interactive map (tap or click to select)"></div>
-        <div class="forecastSpotlight forecastSheet" id="forecastSheetRoot" aria-live="polite">
+        <button type="button" id="mapFullscreenBtn" class="fab fab--expand" aria-pressed="false" aria-label="Immersive map">
+          <span class="fab__glyph" aria-hidden="true">⛶</span>
+        </button>
+        <div
+          class="forecastSpotlight forecastSheet forecastSheet--peek"
+          id="forecastSheetRoot"
+          aria-live="polite"
+        >
           <button
             type="button"
             class="sheetHandleBtn"
             id="forecastSheetToggle"
-            aria-expanded="true"
+            aria-expanded="false"
             aria-controls="forecastSheetCollapsible"
-            aria-label="Collapse place detail"
+            aria-label="Pin place detail open (or hover the panel to preview)"
           >
             <span class="sheetHandle" aria-hidden="true"></span>
             <span class="sheetChevron" aria-hidden="true">▼</span>
           </button>
           <div class="sheetSwipeStrip" id="sheetSwipeStrip">
             <div class="forecastHeader">
-              <p id="detailScreenLabel">POI / place detail</p>
-              <span>forecast</span>
+              <p id="detailScreenLabel">Place</p>
+              <span>Outlook</span>
             </div>
             <div class="forecastTitle" id="forecastTitleText">Select a place on the map or via search</div>
             <div class="forecastLevelRow">
               <div>
-                <div class="forecastLabel" id="forecastCrowdLabel">Crowd signal</div>
+                <div class="forecastLabel" id="forecastCrowdLabel">Crowd outlook</div>
                 <div class="forecastLevel" id="forecastLevelText">—</div>
               </div>
               <div>
@@ -238,6 +206,7 @@ root.innerHTML = `
                 <div class="forecastScore"><span id="forecastScoreText">—</span><small>/100</small></div>
               </div>
             </div>
+            <div id="forecastBadges" class="forecastBadges" aria-label="Highlights"></div>
           </div>
           <div id="forecastSheetCollapsible" class="sheetCollapsible">
             <p class="forecastInterpret" id="forecastInterpretation"></p>
@@ -272,47 +241,73 @@ root.innerHTML = `
             </button>
           </div>
         </div>
-        <div class="mapHUD">
-          <div class="hudTitle">On-map selection</div>
-          <div class="hudRow">
-            <span>Type</span>
-            <span id="hudKindText">—</span>
-          </div>
-          <div class="hudRow">
-            <span>Coordinates</span>
-            <span id="hudCoordText">—</span>
-          </div>
-        </div>
       </section>
 
-      <div class="mobileNavBar" aria-label="Navigation">
-        <button id="openMapsBtnMobile" class="btn btnPrimary" type="button" disabled>
-          Open in Google Maps
-        </button>
+        <section class="spotGuide card popularPathBelow" aria-label="Landmarks">
+          <div class="popularPathMount spotGuide__mount" id="popularPathMount"></div>
+        </section>
       </div>
-    </div>
 
-    <section class="insightGrid">
-      <article class="insightCard">
-        <h3>How it decides</h3>
-        <p>
-          Weekly Istanbul pressure from the notebook pipeline (trends, weather, seasonality, holidays). The same
-          city-wide index is shown for every pin until per-venue data exists.
-        </p>
-      </article>
-      <article class="insightCard">
-        <h3>What this UI proves</h3>
-        <p>Search, map interactions, and location-based selection are already production-style and ready for API wiring.</p>
-      </article>
-      <article class="insightCard">
-        <h3>Navigation handoff</h3>
-        <p>After you confirm a place, Google Maps opens for real-world directions—the last step in the target UX flow.</p>
-      </article>
-    </section>
+      <div class="panel panel--trip" id="tripPanel">
+        <section class="card card--explore">
+          <div class="flowBlock">
+            <div class="btnRow">
+              <button id="useMyLocationBtn" class="btn btnPrimary btnInline btn--sm" type="button">
+                Use my location
+              </button>
+            </div>
+            <div id="locationStatus" class="hint" style="margin-top: 8px"></div>
 
-    <div class="footerNote">
-      Forecast uses the bundled weekly model CSV when the Flask API runs with data files; scope is city-wide, not
-      measured footfall at each venue.
+            <div class="categoryBubblesWrap">
+              <div class="fieldLabel">
+                <span>Category</span>
+              </div>
+              <div class="categoryBubbles" role="group" aria-label="Filter by place category">
+                ${CATEGORY_BUBBLES_HTML}
+              </div>
+            </div>
+            <div class="visitDateRow">
+              <div class="fieldLabel">
+                <span>Visit date</span>
+              </div>
+              <input type="hidden" id="visitDatePicker" value="" autocomplete="off" />
+              <div class="miniCalendar" id="visitCalendarShell" aria-label="Choose visit date">
+                <div class="miniCalendar__nav">
+                  <button type="button" class="miniCalendar__navBtn" id="visitCalPrev" aria-label="Previous month">
+                    ‹
+                  </button>
+                  <div class="miniCalendar__month" id="visitCalMonthYear"></div>
+                  <button type="button" class="miniCalendar__navBtn" id="visitCalNext" aria-label="Next month">
+                    ›
+                  </button>
+                </div>
+                <div class="miniCalendar__weekdays" aria-hidden="true">
+                  <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+                </div>
+                <div class="miniCalendar__cells" id="visitCalGrid" role="group"></div>
+                <button type="button" class="miniCalendar__clear" id="visitCalClear">
+                  Clear · use right now
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <nav class="mobileDock" aria-label="Quick actions">
+        <button type="button" class="dockBtn" id="dockExplore" aria-label="Scroll to explore">
+          <span class="dockBtn__ic" aria-hidden="true">◇</span>
+          <span class="dockBtn__tx">Explore</span>
+        </button>
+        <button type="button" class="dockBtn" id="dockMap" aria-label="Scroll to map">
+          <span class="dockBtn__ic" aria-hidden="true">◎</span>
+          <span class="dockBtn__tx">Map</span>
+        </button>
+        <button id="openMapsBtnMobile" class="dockBtn dockBtn--accent" type="button" disabled aria-label="Open in Google Maps">
+          <span class="dockBtn__ic" aria-hidden="true">→</span>
+          <span class="dockBtn__tx">Go</span>
+        </button>
+      </nav>
     </div>
   </div>
 `
@@ -323,42 +318,136 @@ function el<T extends HTMLElement>(id: string): T {
   return node as T
 }
 
-function formatCoord(p: LatLng) {
-  return `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`
+function localDateInputValue(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
-function dotColor(kind: SelectionKind): string {
-  return kind === 'hotel'
-    ? 'var(--accentA)'
-    : kind === 'poi'
-      ? 'var(--accentB)'
-      : kind === 'location'
-        ? 'var(--accentC)'
-        : 'var(--accentD)'
+function startOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1)
 }
 
-function kindLabel(kind: SelectionKind): string {
-  switch (kind) {
-    case 'hotel':
-      return 'Hotel'
-    case 'location':
-      return 'Current location'
-    case 'poi':
-      return 'Point of interest'
-    case 'map':
-      return 'Pinned location'
+/** Visible month in the always-open visit calendar (local, 1st of month). */
+let visitCalView = startOfMonth(new Date())
+const _visitCalInitDay = new Date()
+_visitCalInitDay.setHours(0, 0, 0, 0)
+let visitCalMinD = new Date(_visitCalInitDay)
+let visitCalMaxD = new Date(_visitCalInitDay)
+visitCalMaxD.setFullYear(visitCalMaxD.getFullYear() + 1)
+
+function clampVisitCalViewToRange(): void {
+  const minYm = visitCalMinD.getFullYear() * 12 + visitCalMinD.getMonth()
+  const maxYm = visitCalMaxD.getFullYear() * 12 + visitCalMaxD.getMonth()
+  let vm = visitCalView.getFullYear() * 12 + visitCalView.getMonth()
+  vm = Math.max(minYm, Math.min(maxYm, vm))
+  visitCalView = new Date(Math.floor(vm / 12), vm % 12, 1)
+}
+
+function renderVisitCalendar(): void {
+  const grid = document.getElementById('visitCalGrid')
+  const monthYearEl = document.getElementById('visitCalMonthYear')
+  const prevBtn = document.getElementById('visitCalPrev') as HTMLButtonElement | null
+  const nextBtn = document.getElementById('visitCalNext') as HTMLButtonElement | null
+  const hidden = document.getElementById('visitDatePicker') as HTMLInputElement | null
+  if (!grid || !monthYearEl || !prevBtn || !nextBtn || !hidden) return
+
+  const selected = hidden.value.trim()
+  const y = visitCalView.getFullYear()
+  const m = visitCalView.getMonth()
+
+  monthYearEl.textContent = new Date(y, m, 1).toLocaleDateString(undefined, {
+    month: 'long',
+    year: 'numeric'
+  })
+
+  const minYm = visitCalMinD.getFullYear() * 12 + visitCalMinD.getMonth()
+  const maxYm = visitCalMaxD.getFullYear() * 12 + visitCalMaxD.getMonth()
+  const viewYm = y * 12 + m
+  prevBtn.disabled = viewYm <= minYm
+  nextBtn.disabled = viewYm >= maxYm
+
+  grid.replaceChildren()
+  const first = new Date(y, m, 1)
+  const lastDay = new Date(y, m + 1, 0).getDate()
+  const lead = (first.getDay() + 6) % 7
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  for (let i = 0; i < lead; i++) {
+    const pad = document.createElement('span')
+    pad.className = 'miniCalendar__pad'
+    pad.setAttribute('aria-hidden', 'true')
+    grid.appendChild(pad)
+  }
+
+  for (let d = 1; d <= lastDay; d++) {
+    const cellDate = new Date(y, m, d)
+    cellDate.setHours(0, 0, 0, 0)
+    const ymd = localDateInputValue(cellDate)
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'miniCalendar__day'
+    btn.textContent = String(d)
+    btn.setAttribute(
+      'aria-label',
+      cellDate.toLocaleDateString(undefined, {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      })
+    )
+    btn.style.setProperty('--day-delay', `${((d + lead) % 7) * 0.04}s`)
+
+    if (cellDate < visitCalMinD || cellDate > visitCalMaxD) {
+      btn.disabled = true
+      btn.classList.add('miniCalendar__day--muted')
+    } else {
+      btn.addEventListener('click', () => {
+        hidden.value = ymd
+        renderVisitCalendar()
+        onFilterChange()
+      })
+    }
+
+    if (ymd === selected) btn.classList.add('isSelected')
+    if (cellDate.getTime() === today.getTime()) btn.classList.add('miniCalendar__day--today')
+
+    grid.appendChild(btn)
   }
 }
 
-function getHorizonWeeks(): number {
-  const node = document.getElementById('filterWhen') as HTMLSelectElement | null
-  const n = Number(node?.value)
-  return n >= 1 && n <= 52 ? n : 4
+function syncVisitDatePickerBounds(): void {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  visitCalMinD = new Date(today)
+  visitCalMaxD = new Date(today)
+  visitCalMaxD.setFullYear(visitCalMaxD.getFullYear() + 1)
+  clampVisitCalViewToRange()
+  renderVisitCalendar()
+}
+
+/** ISO timestamp for ``POST /api/recommendations``: chosen day + current clock, or now when the date is cleared. */
+function getRecommendationTimestampISO(): string {
+  const input = document.getElementById('visitDatePicker') as HTMLInputElement | null
+  const raw = input?.value?.trim()
+  if (!raw) return new Date().toISOString()
+  const parts = raw.split('-').map(Number)
+  const y = parts[0]
+  const mo = parts[1]
+  const d = parts[2]
+  if (!y || !mo || !d) return new Date().toISOString()
+  const now = new Date()
+  const visit = new Date(y, mo - 1, d, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds())
+  return visit.toISOString()
 }
 
 function getCategoryFilter(): string {
-  const node = document.getElementById('filterCategory') as HTMLSelectElement | null
-  const v = node?.value ?? 'all'
+  const active = document.querySelector<HTMLButtonElement>('.categoryBubble.isActive')
+  const v = active?.dataset.category ?? 'all'
   return v === 'all' ? '' : v
 }
 
@@ -374,6 +463,97 @@ function applyCategoryToSearchResults(items: SearchResult[]): SearchResult[] {
 function googleMapsDirectionsUrl(sel: MapSelection): string {
   const { lat, lng } = sel.latlng
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${lat},${lng}`)}`
+}
+
+function crowdLevelNorm(label: string): 'Low' | 'Medium' | 'High' {
+  const s = label.toLowerCase()
+  if (s.includes('high') || s.includes('busy')) return 'High'
+  if (s.includes('low') || s.includes('quiet')) return 'Low'
+  return 'Medium'
+}
+
+async function execGlobalSearch(query: string, container: HTMLDivElement) {
+  setSkeletonResults(container)
+  try {
+    const items = await searchEverything(query)
+    clearResults(container)
+    const filtered = applyCategoryToSearchResults(items)
+    if (filtered.length === 0) {
+      showWarmEmpty(
+        container,
+        items.length === 0
+          ? 'Try a landmark, neighborhood, or hotel name—we’ll surface matches as you type.'
+          : 'Nothing in this category—switch to “All categories” for more.'
+      )
+      return
+    }
+    filtered.forEach((item, i) => {
+      if (item.kind === 'hotel') container.appendChild(makeHotelRow(item.hotel, i))
+      else container.appendChild(makePoiRow(item.poi, i))
+    })
+  } catch {
+    showWarmEmpty(
+      container,
+      'Check your connection or try again. Search works even when extra services are offline.',
+      'Search unavailable'
+    )
+  }
+}
+
+function buildForecastBadgesHtml(level: string, kind: SelectionKind, label: string): string {
+  const h = new Date().getHours()
+  const parts: { text: string; mod: string }[] = []
+  if (h >= 17 && h < 21) parts.push({ text: 'Perfect for sunset', mod: 'forecastBadge--sun' })
+  if (level === 'Low') parts.push({ text: 'Quiet stretch ahead', mod: 'forecastBadge--quiet' })
+  if (level === 'High') parts.push({ text: 'Best avoided at peak hours', mod: 'forecastBadge--peak' })
+  if (/galata|ayasofya|hagia|grand bazaar|tower|mosque|bazaar/i.test(label))
+    parts.push({ text: 'Popular with tourists', mod: 'forecastBadge--tour' })
+  if (parts.length < 4 && kind === 'poi') parts.push({ text: 'Great hidden gem nearby', mod: 'forecastBadge--gem' })
+  return parts
+    .slice(0, 5)
+    .map((p) => `<span class="forecastBadge ${p.mod}">${escapeHtml(p.text)}</span>`)
+    .join('')
+}
+
+function renderDiscoveryPanel(container: HTMLDivElement) {
+  const recent = recentSearchesGet().slice(0, 6)
+  const recentBlock =
+    recent.length === 0
+      ? ''
+      : `<div class="discSection"><div class="discSection__title">Recent</div>${recent
+          .map(
+            (q) =>
+              `<button type="button" class="discRow" data-q="${escapeHtml(q)}"><span class="discRow__hint">Again</span><span class="discRow__name">${escapeHtml(q)}</span></button>`
+          )
+          .join('')}</div>`
+
+  const trendBlock = `<div class="discSection"><div class="discSection__title">Popular in Istanbul</div>${TRENDING_ISTANBUL.map(
+    (t: DiscoveryItem) =>
+      `<button type="button" class="discRow discRow--rich" data-q="${escapeHtml(t.query)}"><span class="discRow__ic" aria-hidden="true">${t.icon}</span><span class="discRow__stack"><span class="discRow__name">${escapeHtml(t.query)}</span><span class="discRow__sub">${escapeHtml(t.subtitle ?? '')}</span></span></button>`
+  ).join('')}</div>`
+
+  const gemsBlock = `<div class="discSection"><div class="discSection__title">Hidden gems near you</div>${HIDDEN_GEMS.map(
+    (t: DiscoveryItem) =>
+      `<button type="button" class="discRow discRow--rich" data-q="${escapeHtml(t.query)}"><span class="discRow__ic" aria-hidden="true">${t.icon}</span><span class="discRow__stack"><span class="discRow__name">${escapeHtml(t.query)}</span><span class="discRow__sub">${escapeHtml(t.subtitle ?? '')}</span></span></button>`
+  ).join('')}</div>`
+
+  const guessBlock = `<div class="discSection"><div class="discSection__title">You might also like</div>
+    <div class="guessGrid">
+      <span class="guessPill">Perfect evening spots</span>
+      <span class="guessPill">Quiet alternatives nearby</span>
+      <span class="guessPill">Less crowded than Galata Tower</span>
+    </div></div>`
+
+  container.innerHTML = `<div class="discoveryPanel animStagger">${recentBlock}${trendBlock}${gemsBlock}${guessBlock}</div>`
+  container.querySelectorAll<HTMLButtonElement>('button[data-q]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const q = btn.getAttribute('data-q') ?? ''
+      const input = document.getElementById('globalSearchInput') as HTMLInputElement | null
+      if (input) input.value = q
+      recentSearchesAdd(q)
+      void execGlobalSearch(q, container)
+    })
+  })
 }
 
 async function fillAlternativesIfCrowded(sel: MapSelection, crowdLevel: string, forecastScope: string) {
@@ -404,14 +584,14 @@ async function fillAlternativesIfCrowded(sel: MapSelection, crowdLevel: string, 
   }
 
   if (!showRecommendations && forecastScope === 'city_wide') {
-    warnTitle.textContent = 'High city-wide pressure this week'
+    warnTitle.textContent = 'Busy week city-wide'
     warnBody.textContent =
-      'The model estimates pressure for Istanbul as a whole—not a live queue at this pin. Nearby places are for exploration; they are not ranked as “quieter” from venue counts.'
+      'Pressure is high across Istanbul this week—the outlook isn’t a live queue at this pin. Nearby suggestions are for inspiration.'
     altTitle.textContent = 'Other places nearby'
   } else if (!showRecommendations) {
-    warnTitle.textContent = 'High (demo scoring)'
+    warnTitle.textContent = 'Crowd outlook unavailable'
     warnBody.textContent =
-      'Demo mode uses a placeholder score. Bundle the weekly CSV in the API for a real city-wide index.'
+      'We couldn’t load a full weekly score—nearby places are shown for exploration only.'
     altTitle.textContent = 'Alternatives nearby'
   }
 
@@ -420,7 +600,7 @@ async function fillAlternativesIfCrowded(sel: MapSelection, crowdLevel: string, 
   try {
     const data = await fetchRecommendations({
       origin: sel.latlng,
-      timestamp: new Date().toISOString(),
+      timestamp: getRecommendationTimestampISO(),
       radiusKm: showRecommendations ? 10 : 25,
       topK: showRecommendations ? 6 : 4,
       includeItinerary: false,
@@ -429,12 +609,13 @@ async function fillAlternativesIfCrowded(sel: MapSelection, crowdLevel: string, 
     const recs = data.recommendations
     if (recs.length === 0) {
       list.innerHTML =
-        '<p class="altEmpty">No ranked POIs for this pin—try another category or widen the map.</p>'
+        '<p class="altEmpty">No suggestions for this spot yet—try another category or move the map.</p>'
       return
     }
     for (const rec of recs) {
-      const name = String(rec.name ?? 'Place')
-      const dist = rec.distance_km
+      const ranked = rec as RankedRecommendation
+      const name = String(ranked.name ?? 'Place')
+      const dist = ranked.distance_km
       const km =
         typeof dist === 'number'
           ? dist
@@ -447,36 +628,87 @@ async function fillAlternativesIfCrowded(sel: MapSelection, crowdLevel: string, 
           : Number.isFinite(km)
             ? `${km.toFixed(1)} km`
             : '—'
-      const metaCat = String(rec.category ?? '')
-      const b = document.createElement('button')
-      b.type = 'button'
-      b.className = 'altPoiBtn'
+      const metaCat = String(ranked.category ?? '')
+      const crowdRaw = String(ranked.crowd_level_label ?? '')
+      const thumb = gradientThumbStyle(name)
+      const photoUrl = rankedRowPhotoUrl(ranked)
+      const llAlt = pickLatLngFromRankedRec(ranked)
+      const badges = recommendationMicroBadges(ranked)
+        .map((t) => `<span class="microBadge">${escapeHtml(t)}</span>`)
+        .join('')
+      const dot = crowdDotClass(crowdRaw || 'Medium')
+      const cl = crowdRaw ? crowdLevelNorm(crowdRaw) : 'Medium'
+      const bt = bestTimeShort(cl)
+      const favId = `rec:${String(ranked.poi_id ?? name)}`
+      const favOn = favoriteHas(favId)
+
+      const b = document.createElement('div')
+      b.className = 'altCard'
       b.setAttribute('role', 'listitem')
-      b.innerHTML = `<span class="altPoiName">${name}</span><span class="altPoiMeta">${metaCat} · ${distLabel}</span>`
-      const ll = pickLatLngFromRankedRec(rec)
-      if (ll) {
-        b.addEventListener('click', () => {
-          const next: MapSelection = { latlng: ll, label: name, kind: 'location' }
-          currentSelection = next
-          setChip(next)
-          map.setMarker(next, { flyTo: true })
-        })
+      b.tabIndex = 0
+      const altThumb = altCardThumbBlock({
+        photoUrl,
+        placeName: name,
+        lat: llAlt?.lat,
+        lng: llAlt?.lng,
+        gradientCss: thumb,
+        iconHtml: categoryIcon(metaCat, 'poi')
+      })
+      b.innerHTML = `
+        ${altThumb}
+        <div class="altCard__body">
+          <div class="altCard__head">
+            <span class="crowdDot ${dot}" aria-hidden="true"></span>
+            <span class="microAi">Pick</span>
+            <button type="button" class="favBtn favBtn--sm ${favOn ? 'isOn' : ''}" data-favid="${escapeHtml(favId)}" aria-label="Save">${favOn ? '♥' : '♡'}</button>
+          </div>
+          <span class="altCard__name">${escapeHtml(name)}</span>
+          <span class="altCard__meta">${escapeHtml(metaCat)} · ${escapeHtml(distLabel)}</span>
+          <div class="microBadgeRow">${badges}</div>
+          <div class="bestTimeMini"><span>Best time</span> ${escapeHtml(bt)}</div>
+        </div>`
+      const fav = b.querySelector('.favBtn')
+      fav?.addEventListener('click', (ev) => {
+        ev.stopPropagation()
+        const on = favoriteToggle(favId)
+        fav.classList.toggle('isOn', on)
+        fav.textContent = on ? '♥' : '♡'
+      })
+      const go = () => {
+        if (!llAlt) return
+        const next: MapSelection = { latlng: llAlt, label: name, kind: 'location' }
+        currentSelection = next
+        setChip(next)
+        map.setMarker(next, { flyTo: true })
       }
+      b.addEventListener('click', (ev) => {
+        if ((ev.target as HTMLElement).closest('.favBtn')) return
+        go()
+      })
+      b.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          go()
+        }
+      })
       list.appendChild(b)
     }
   } catch {
-    list.innerHTML =
-      '<p class="altEmpty">Recommendations unavailable—start the Flask API on port 8080.</p>'
+    list.innerHTML = '<p class="altEmpty">Suggestions unavailable right now. Try again in a moment.</p>'
   }
 }
 
+let lastSetChipPeekKey = '__init__'
+
 function setChip(selection: MapSelection | null) {
-  const dot = el<HTMLElement>('selectionChipDot')
-  const kindText = el<HTMLSpanElement>('selectionKindText')
-  const labelText = el<HTMLDivElement>('selectionLabelText')
-  const coordsText = el<HTMLSpanElement>('selectionCoordsText')
-  const hudKind = el<HTMLSpanElement>('hudKindText')
-  const hudCoord = el<HTMLSpanElement>('hudCoordText')
+  const peekKey = selection
+    ? `${selection.kind}|${selection.label}|${selection.latlng.lat.toFixed(4)}|${selection.latlng.lng.toFixed(4)}`
+    : 'null'
+  if (peekKey !== lastSetChipPeekKey) {
+    lastSetChipPeekKey = peekKey
+    document.getElementById('forecastSheetRoot')?.dispatchEvent(new Event('icc-forecast-peek-reset', { bubbles: false }))
+  }
+
   const forecastTitle = el<HTMLDivElement>('forecastTitleText')
   const forecastLevel = el<HTMLDivElement>('forecastLevelText')
   const forecastScore = el<HTMLSpanElement>('forecastScoreText')
@@ -491,26 +723,22 @@ function setChip(selection: MapSelection | null) {
   const openMapsBtnMobile = document.getElementById('openMapsBtnMobile') as HTMLButtonElement | null
   const forecastInterpretation = el<HTMLParagraphElement>('forecastInterpretation')
   const forecastCrowdLabel = el<HTMLDivElement>('forecastCrowdLabel')
+  const forecastBadgesEl = document.getElementById('forecastBadges')
 
   if (!selection) {
-    dot.style.background = 'transparent'
-    kindText.textContent = '—'
-    labelText.textContent = 'Click map or choose a hotel'
-    coordsText.textContent = '—'
-    hudKind.textContent = '—'
-    hudCoord.textContent = '—'
-    forecastTitle.textContent = 'Select a place on the map or via search'
+    forecastTitle.textContent = 'Tap the map or pick from search'
     forecastInterpretation.textContent = ''
-    forecastCrowdLabel.textContent = 'Crowd signal'
+    forecastCrowdLabel.textContent = 'Crowd outlook'
     forecastLevel.textContent = '—'
     forecastScore.textContent = '—'
     forecastTrend.textContent = 'Awaiting selection…'
     areaTrafficText.textContent = '—'
     bestTimeText.textContent = '—'
-    detailScreenLabel.textContent = 'POI / place detail'
+    detailScreenLabel.textContent = 'Place'
     crowdedWarning.hidden = true
     alternativesBlock.hidden = true
     alternativesList.innerHTML = ''
+    if (forecastBadgesEl) forecastBadgesEl.innerHTML = ''
     openMapsBtn.disabled = true
     if (openMapsBtnMobile) openMapsBtnMobile.disabled = true
     return
@@ -518,26 +746,20 @@ function setChip(selection: MapSelection | null) {
 
   openMapsBtn.disabled = false
   if (openMapsBtnMobile) openMapsBtnMobile.disabled = false
-  detailScreenLabel.textContent = selection.kind === 'poi' ? 'POI detail' : 'Place detail'
-  dot.style.background = dotColor(selection.kind)
-  kindText.textContent = kindLabel(selection.kind)
-  labelText.textContent = selection.label
-  coordsText.textContent = formatCoord(selection.latlng)
-  hudKind.textContent = kindLabel(selection.kind)
-  hudCoord.textContent = formatCoord(selection.latlng)
+  detailScreenLabel.textContent = selection.kind === 'poi' ? 'Landmark or place' : 'Place'
   forecastTitle.textContent = selection.label
   forecastLevel.textContent = '…'
   forecastScore.textContent = '…'
-  forecastTrend.textContent = 'Fetching forecast from API…'
+  forecastTrend.textContent = 'Loading outlook…'
   areaTrafficText.textContent = '…'
   bestTimeText.textContent = '…'
   forecastInterpretation.textContent = ''
   crowdedWarning.hidden = true
   alternativesBlock.hidden = true
   alternativesList.innerHTML = ''
+  if (forecastBadgesEl) forecastBadgesEl.innerHTML = ''
 
-  const horizon = getHorizonWeeks()
-  forecast({ kind: selection.kind, label: selection.label, latlng: selection.latlng }, horizon)
+  forecast({ kind: selection.kind, label: selection.label, latlng: selection.latlng }, FORECAST_HORIZON_WEEKS)
     .then((res) => {
       if (!currentSelection) return
       if (currentSelection.label !== selection.label || currentSelection.kind !== selection.kind) return
@@ -547,57 +769,37 @@ function setChip(selection: MapSelection | null) {
       const scope = res.forecastScope ?? 'demo'
       let interp = res.interpretation?.trim() ?? ''
       if (res.basisWeekStart) {
-        interp = interp ? `${interp} Data week: ${res.basisWeekStart}.` : `Data week: ${res.basisWeekStart}.`
+        const wk = `Outlook for the week starting ${res.basisWeekStart}.`
+        interp = interp ? `${interp} ${wk}` : wk
       }
       forecastInterpretation.textContent = interp
 
       if (scope === 'city_wide') {
-        forecastCrowdLabel.textContent = 'City this week'
-        areaTrafficText.textContent = `${res.level} (city-wide, not road API)`
+        forecastCrowdLabel.textContent = 'This week in Istanbul'
+        areaTrafficText.textContent = `${res.level} (city-wide)`
       } else {
-        forecastCrowdLabel.textContent = 'Demo score'
+        forecastCrowdLabel.textContent = 'Estimated crowd'
         areaTrafficText.textContent = areaTrafficLevel(res.score)
       }
       bestTimeText.textContent = bestTimeHint(res.level)
+      if (forecastBadgesEl)
+        forecastBadgesEl.innerHTML = buildForecastBadgesHtml(res.level, selection.kind, selection.label)
       void fillAlternativesIfCrowded(selection, res.level, scope)
     })
     .catch(() => {
       forecastLevel.textContent = '—'
       forecastScore.textContent = '—'
-      forecastTrend.textContent = 'Backend not reachable (start Flask API on :8080)'
+      forecastTrend.textContent = 'Outlook unavailable—check your connection and try again.'
       areaTrafficText.textContent = '—'
       bestTimeText.textContent = '—'
       forecastInterpretation.textContent = ''
+      if (forecastBadgesEl) forecastBadgesEl.innerHTML = ''
       crowdedWarning.hidden = true
       alternativesBlock.hidden = true
       alternativesList.innerHTML = ''
     })
 }
 
-const tabHotels = el<HTMLButtonElement>('tabHotels')
-const tabLocation = el<HTMLButtonElement>('tabLocation')
-const panelHotels = el<HTMLDivElement>('panelHotels')
-const panelLocation = el<HTMLDivElement>('panelLocation')
-
-function setActiveTab(tab: 'hotels' | 'location') {
-  const hotelsActive = tab === 'hotels'
-  tabHotels.classList.toggle('isActive', hotelsActive)
-  tabHotels.setAttribute('aria-selected', String(hotelsActive))
-  tabHotels.style.opacity = hotelsActive ? '1' : '0.86'
-
-  tabLocation.classList.toggle('isActive', !hotelsActive)
-  tabLocation.setAttribute('aria-selected', String(!hotelsActive))
-  tabLocation.style.opacity = !hotelsActive ? '1' : '0.86'
-
-  panelHotels.hidden = !hotelsActive
-  panelLocation.hidden = hotelsActive
-}
-
-tabHotels.addEventListener('click', () => setActiveTab('hotels'))
-tabLocation.addEventListener('click', () => setActiveTab('location'))
-
-const hotelPickerInput = el<HTMLInputElement>('hotelPickerInput')
-const hotelPickerResults = el<HTMLDivElement>('hotelPickerResults')
 const globalSearchInput = el<HTMLInputElement>('globalSearchInput')
 const globalSearchResults = el<HTMLDivElement>('globalSearchResults')
 
@@ -605,19 +807,120 @@ function clearResults(container: HTMLDivElement) {
   container.innerHTML = ''
 }
 
-function showEmpty(container: HTMLDivElement, text: string) {
+function showEmpty(container: HTMLDivElement, text: string, title?: string) {
+  showWarmEmpty(container, text, title)
+}
+
+function showWarmEmpty(container: HTMLDivElement, text: string, title = 'No matches yet') {
   clearResults(container)
   const row = document.createElement('div')
-  row.className = 'resultItem'
+  row.className = 'emptyState'
   row.style.cursor = 'default'
   row.innerHTML = `
-    <div class="resultBadge" style="opacity:0.7">Prototype</div>
-    <div class="resultMain">
-      <div class="resultName">No matches</div>
-      <div class="resultMeta">${text}</div>
-    </div>
+    <div class="emptyState__art" aria-hidden="true">✦</div>
+    <div class="emptyState__title">${escapeHtml(title)}</div>
+    <div class="emptyState__body">${escapeHtml(text)}</div>
   `
   container.appendChild(row)
+}
+
+function rankedRowPhotoUrl(rec: RankedRecommendation): string | undefined {
+  const r = rec as Record<string, unknown>
+  const direct =
+    (typeof r.photo_url === 'string' && r.photo_url.trim()) ||
+    (typeof r.photoUrl === 'string' && r.photoUrl.trim())
+  if (direct) return direct
+  const pid = r.poi_id != null ? String(r.poi_id) : ''
+  return pid ? thumbUrlForPoiId(pid) : undefined
+}
+
+/** Alternative row thumbnail (matches ``richThumbBlock`` proxy + fallback behavior). */
+function altCardThumbBlock(opts: {
+  photoUrl?: string
+  placeName: string
+  lat?: number
+  lng?: number
+  gradientCss: string
+  iconHtml: string
+}): string {
+  const lat = opts.lat
+  const lng = opts.lng
+  const hasCoords =
+    typeof lat === 'number' &&
+    typeof lng === 'number' &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng)
+  const nm = opts.placeName.trim()
+  const useProxy = Boolean(nm && hasCoords)
+  const photoUrl = opts.photoUrl?.trim()
+  const fbHttps = photoUrl?.startsWith('https://') ? photoUrl : undefined
+
+  if (useProxy) {
+    const proxyEsc = escapeHtml(
+      placePhotoProxyUrl({
+        name: nm,
+        lat,
+        lng,
+        fallbackUrl: fbHttps
+      })
+    )
+    const bgEsc = escapeHtml(opts.gradientCss)
+    const dataFb = fbHttps ? ` data-fallback="${escapeHtml(fbHttps)}"` : ''
+    const onerr = fbHttps
+      ? ` onerror="this.onerror=null;if(this.dataset.fallback){this.src=this.dataset.fallback;this.removeAttribute('data-fallback');return;}this.remove()"`
+      : ` onerror="this.remove()"`
+    return `<div class="altCard__thumb altCard__thumb--photo" style="background:${bgEsc}"><span class="altCard__ic" aria-hidden="true">${opts.iconHtml}</span><img class="altCard__img" src="${proxyEsc}" alt="" loading="lazy" decoding="async"${dataFb}${onerr} /></div>`
+  }
+  if (photoUrl) {
+    return `<div class="altCard__thumb altCard__thumb--photo"><img class="altCard__img" src="${escapeHtml(photoUrl)}" alt="" loading="lazy" decoding="async" /></div>`
+  }
+  return `<div class="altCard__thumb" style="background:${escapeHtml(opts.gradientCss)}"><span class="altCard__ic" aria-hidden="true">${opts.iconHtml}</span></div>`
+}
+
+/** Left thumbnail: Google Places proxy when coordinates exist, else catalog photo or gradient + glyph. */
+function richThumbBlock(opts: {
+  photoUrl?: string
+  placeName?: string
+  lat?: number
+  lng?: number
+  gradientCss: string
+  iconHtml: string
+  dotHtml?: string
+}): string {
+  const dot = opts.dotHtml ?? ''
+  const lat = opts.lat
+  const lng = opts.lng
+  const hasCoords =
+    typeof lat === 'number' &&
+    typeof lng === 'number' &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng)
+  const nm = opts.placeName?.trim()
+  const useProxy = Boolean(nm && hasCoords)
+  const photoUrl = opts.photoUrl?.trim()
+  const fbHttps = photoUrl?.startsWith('https://') ? photoUrl : undefined
+
+  if (useProxy && nm) {
+    const proxyEsc = escapeHtml(
+      placePhotoProxyUrl({
+        name: nm,
+        lat,
+        lng,
+        fallbackUrl: fbHttps
+      })
+    )
+    const bgEsc = escapeHtml(opts.gradientCss)
+    const dataFb = fbHttps ? ` data-fallback="${escapeHtml(fbHttps)}"` : ''
+    const onerr = fbHttps
+      ? ` onerror="this.onerror=null;if(this.dataset.fallback){this.src=this.dataset.fallback;this.removeAttribute('data-fallback');return;}this.remove()"`
+      : ` onerror="this.remove()"`
+    return `<div class="richThumb richThumb--photo" style="background:${bgEsc}"><span class="richThumb__ic" aria-hidden="true">${opts.iconHtml}</span><img class="richThumb__img" src="${proxyEsc}" alt="" loading="lazy" decoding="async"${dataFb}${onerr} />${dot}</div>`
+  }
+  if (photoUrl) {
+    const src = escapeHtml(photoUrl)
+    return `<div class="richThumb richThumb--photo"><img class="richThumb__img" src="${src}" alt="" loading="lazy" decoding="async" />${dot}</div>`
+  }
+  return `<div class="richThumb" style="background:${escapeHtml(opts.gradientCss)}"><span class="richThumb__ic" aria-hidden="true">${opts.iconHtml}</span>${dot}</div>`
 }
 
 function pickLatLngFromRankedRec(rec: RankedRecommendation): LatLng | null {
@@ -636,9 +939,10 @@ function pickLatLngFromRankedRec(rec: RankedRecommendation): LatLng | null {
   return { lat, lng }
 }
 
-function makeRankedRecommendationRow(rec: RankedRecommendation): HTMLElement {
+function makeRankedRecommendationRow(rec: RankedRecommendation, index = 0): HTMLElement {
   const row = document.createElement('div')
-  row.className = 'resultItem'
+  row.className = 'richResult richResult--rise richResult--rank'
+  row.style.setProperty('--i', String(index))
   row.setAttribute('role', 'option')
   row.tabIndex = 0
 
@@ -653,65 +957,98 @@ function makeRankedRecommendationRow(rec: RankedRecommendation): HTMLElement {
   const cat = String(rec.category ?? '')
   const crowd = String(rec.crowd_level_label ?? '')
   const expl = String(rec.explanation ?? rec.explanation_text ?? '')
-  const score = rec.score
+  const thumb = gradientThumbStyle(name)
+  const photoUrl = rankedRowPhotoUrl(rec)
+  const llRec = pickLatLngFromRankedRec(rec)
+  const ic = categoryIcon(cat, 'poi')
+  const badges = recommendationMicroBadges(rec)
+    .map((t) => `<span class="microBadge">${escapeHtml(t)}</span>`)
+    .join('')
+  const dot = crowdDotClass(crowd || 'Medium')
+  const bt = bestTimeShort(crowd ? crowdLevelNorm(crowd) : 'Medium')
+  const favId = `rec:${String(rec.poi_id ?? name)}`
+  const favOn = favoriteHas(favId)
 
-  const badge = document.createElement('div')
-  badge.className = 'resultBadge'
-  badge.textContent = 'Ranked'
+  row.innerHTML = `
+    ${richThumbBlock({
+      photoUrl,
+      placeName: name,
+      lat: llRec?.lat,
+      lng: llRec?.lng,
+      gradientCss: thumb,
+      iconHtml: ic,
+      dotHtml: `<span class="crowdDot ${dot} richThumb__dot" aria-hidden="true"></span>`
+    })}
+    <div class="richBody">
+      <div class="richTop">
+        <span class="richKind">Nearby</span>
+        <span class="microAi">For you</span>
+        <button type="button" class="favBtn ${favOn ? 'isOn' : ''}" aria-label="Save place">${favOn ? '♥' : '♡'}</button>
+      </div>
+      <div class="richName">${escapeHtml(name)}</div>
+      <div class="richMeta">${escapeHtml(cat)} · ${escapeHtml(distStr)}${crowd ? ` · ${escapeHtml(crowd)}` : ''}</div>
+      <div class="microBadgeRow">${badges}</div>
+      <div class="bestTimeMini"><span>Best time</span> ${escapeHtml(bt)}</div>
+      ${expl.trim() ? `<div class="richExpl">${escapeHtml(expl)}</div>` : ''}
+    </div>`
 
-  const main = document.createElement('div')
-  main.className = 'resultMain'
-  const title = document.createElement('div')
-  title.className = 'resultName'
-  title.textContent = name
-  const meta = document.createElement('div')
-  meta.className = 'resultMeta'
-  const metaBits = [cat, distStr, crowd ? `crowd ${crowd}` : '', typeof score === 'number' ? `score ${score.toFixed(3)}` : '']
-  meta.textContent = metaBits.filter(Boolean).join(' · ')
-  main.appendChild(title)
-  main.appendChild(meta)
-  if (expl.trim()) {
-    const detail = document.createElement('div')
-    detail.className = 'resultMeta'
-    detail.style.marginTop = '6px'
-    detail.style.fontSize = '0.9em'
-    detail.style.opacity = '0.95'
-    detail.textContent = expl
-    main.appendChild(detail)
+  const fav = row.querySelector('.favBtn')
+  fav?.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const on = favoriteToggle(favId)
+    fav.classList.toggle('isOn', on)
+    fav.textContent = on ? '♥' : '♡'
+  })
+
+  const go = () => {
+    if (!llRec) return
+    const sel: MapSelection = { latlng: llRec, label: name, kind: 'location' }
+    currentSelection = sel
+    setChip(sel)
+    map.setMarker(sel, { flyTo: true })
   }
-
-  row.appendChild(badge)
-  row.appendChild(main)
-
-  const ll = pickLatLngFromRankedRec(rec)
-  if (ll) {
-    row.addEventListener('click', () => {
-      const sel: MapSelection = { latlng: ll, label: name, kind: 'location' }
-      currentSelection = sel
-      setChip(sel)
-      map.setMarker(sel, { flyTo: true })
-    })
-    row.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        const sel: MapSelection = { latlng: ll, label: name, kind: 'location' }
-        currentSelection = sel
-        setChip(sel)
-        map.setMarker(sel, { flyTo: true })
-      }
-    })
-  }
+  row.addEventListener('click', (ev) => {
+    if ((ev.target as HTMLElement).closest('.favBtn')) return
+    go()
+  })
+  row.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      go()
+    }
+  })
 
   return row
 }
 
+function fillNearbyRecommendationsPanel(origin: LatLng, cat: string) {
+  clearResults(globalSearchResults)
+  const recs = rankLocalPoisNear(origin, cat, 10)
+  if (recs.length === 0) {
+    showEmpty(
+      globalSearchResults,
+      'Nothing matched that category—set Category to “All categories” or search above.',
+      'Nothing nearby'
+    )
+    return
+  }
+  recs.forEach((rec, i) => {
+    globalSearchResults.appendChild(makeRankedRecommendationRow(rec as RankedRecommendation, i))
+  })
+}
+
+function scrollNearbyResultsIntoView() {
+  document.querySelector('.card--search')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+
 async function showNearbyMatches(origin: LatLng) {
-  setLoading(globalSearchResults)
+  setSkeletonResults(globalSearchResults)
   const cat = getCategoryFilter()
   try {
     const data = await fetchRecommendations({
       origin,
-      timestamp: new Date().toISOString(),
-      radiusKm: 5,
+      timestamp: getRecommendationTimestampISO(),
+      radiusKm: 12,
       topK: 10,
       includeItinerary: false,
       ...(cat ? { allowedCategories: [cat] } : {})
@@ -719,83 +1056,163 @@ async function showNearbyMatches(origin: LatLng) {
     clearResults(globalSearchResults)
     const recs = data.recommendations
     if (recs.length === 0) {
-      showEmpty(
-        globalSearchResults,
-        'No ranked POIs for this area—try another category or use search.'
-      )
-      return
-    }
-    for (const rec of recs) {
-      globalSearchResults.appendChild(makeRankedRecommendationRow(rec))
+      fillNearbyRecommendationsPanel(origin, cat)
+    } else {
+      recs.forEach((rec, i) => {
+        globalSearchResults.appendChild(makeRankedRecommendationRow(rec as RankedRecommendation, i))
+      })
     }
   } catch {
-    showEmpty(
-      globalSearchResults,
-      'Could not load ranked POIs. Start the Flask API on port 8080 (backend-python).'
-    )
+    fillNearbyRecommendationsPanel(origin, cat)
   }
+  scrollNearbyResultsIntoView()
 }
 
-function setLoading(container: HTMLDivElement) {
+function setSkeletonResults(container: HTMLDivElement, rows = 5) {
   clearResults(container)
-  const row = document.createElement('div')
-  row.className = 'resultItem'
-  row.style.cursor = 'default'
-  row.innerHTML = `
-    <div class="resultBadge" style="opacity:0.8">Loading</div>
-    <div class="resultMain">
-      <div class="resultName">Searching Istanbul…</div>
-      <div class="resultMeta">Calling /api/recommendations…</div>
-    </div>
-  `
-  container.appendChild(row)
+  const frag = document.createDocumentFragment()
+  for (let i = 0; i < rows; i++) {
+    const d = document.createElement('div')
+    d.className = 'skelRow'
+    d.style.setProperty('--i', String(i))
+    d.innerHTML = `
+      <div class="skelThumb skelShimmer"></div>
+      <div class="skelBody">
+        <div class="skelLine skelLine--lg skelShimmer"></div>
+        <div class="skelLine skelLine--sm skelShimmer"></div>
+        <div class="skelLine skelLine--sm skelShimmer" style="width:55%"></div>
+      </div>`
+    frag.appendChild(d)
+  }
+  container.appendChild(frag)
 }
 
-function makeHotelRow(hotel: Hotel): HTMLElement {
+function makeHotelRow(hotel: Hotel, index = 0): HTMLElement {
   const row = document.createElement('div')
-  row.className = 'resultItem'
+  row.className = 'richResult richResult--rise'
+  row.style.setProperty('--i', String(index))
   row.setAttribute('role', 'option')
   row.tabIndex = 0
   row.dataset.id = hotel.id
 
-  row.innerHTML = `
-    <div class="resultBadge">Hotel</div>
-    <div class="resultMain">
-      <div class="resultName">${hotel.name}</div>
-      <div class="resultMeta">${hotel.district} • ${hotel.rating.toFixed(1)}★ • from $${hotel.priceFrom}</div>
-    </div>
-  `
+  const thumb = gradientThumbStyle(hotel.name)
+  const ic = categoryIcon('Hotel', 'hotel')
+  const favOn = favoriteHas(`hotel:${hotel.id}`)
+  const micro = hotelCardBadges(hotel).map((t) => `<span class="microBadge">${escapeHtml(t)}</span>`).join('')
 
-  row.addEventListener('click', () => selectHotel(hotel))
+  row.innerHTML = `
+    ${richThumbBlock({
+      photoUrl: hotel.photoUrl,
+      placeName: hotel.name,
+      lat: hotel.lat,
+      lng: hotel.lng,
+      gradientCss: thumb,
+      iconHtml: ic
+    })}
+    <div class="richBody">
+      <div class="richTop">
+        <span class="richKind">Hotel</span>
+        <button type="button" class="favBtn ${favOn ? 'isOn' : ''}" aria-label="Save hotel">${favOn ? '♥' : '♡'}</button>
+      </div>
+      <div class="richName">${escapeHtml(hotel.name)}</div>
+      <div class="richMeta">${escapeHtml(hotel.district)} · ${hotel.rating.toFixed(1)}★ · from $${hotel.priceFrom}</div>
+      <div class="microBadgeRow">${micro}</div>
+    </div>`
+
+  const fav = row.querySelector('.favBtn')
+  fav?.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const on = favoriteToggle(`hotel:${hotel.id}`)
+    fav.classList.toggle('isOn', on)
+    fav.textContent = on ? '♥' : '♡'
+  })
+
+  const pick = () => {
+    recentSearchesAdd(hotel.name)
+    selectHotel(hotel)
+  }
+  row.addEventListener('click', (ev) => {
+    if ((ev.target as HTMLElement).closest('.favBtn')) return
+    pick()
+  })
   row.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') selectHotel(hotel)
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      pick()
+    }
   })
   return row
 }
 
-function makePoiRow(poi: Poi): HTMLElement {
+function makePoiRow(poi: Poi, index = 0): HTMLElement {
   const row = document.createElement('div')
-  row.className = 'resultItem'
+  row.className = 'richResult richResult--rise'
+  row.style.setProperty('--i', String(index))
   row.setAttribute('role', 'option')
   row.tabIndex = 0
   row.dataset.id = poi.id
 
-  row.innerHTML = `
-    <div class="resultBadge">POI</div>
-    <div class="resultMain">
-      <div class="resultName">${poi.name}</div>
-      <div class="resultMeta">${poi.category}</div>
-    </div>
-  `
+  const thumb = gradientThumbStyle(poi.name)
+  const ic = categoryIcon(poi.category, 'poi')
+  const favOn = favoriteHas(`poi:${poi.id}`)
+  const micro = poiCardBadges(poi).map((t) => `<span class="microBadge">${escapeHtml(t)}</span>`).join('')
 
-  row.addEventListener('click', () => selectPoi(poi))
+  row.innerHTML = `
+    ${richThumbBlock({
+      photoUrl: poi.photoUrl,
+      placeName: poi.name,
+      lat: poi.lat,
+      lng: poi.lng,
+      gradientCss: thumb,
+      iconHtml: ic
+    })}
+    <div class="richBody">
+      <div class="richTop">
+        <span class="richKind">Sight</span>
+        <button type="button" class="favBtn ${favOn ? 'isOn' : ''}" aria-label="Save place">${favOn ? '♥' : '♡'}</button>
+      </div>
+      <div class="richName">${escapeHtml(poi.name)}</div>
+      <div class="richMeta">${escapeHtml(poi.category)}</div>
+      <div class="microBadgeRow">${micro}</div>
+    </div>`
+
+  const fav = row.querySelector('.favBtn')
+  fav?.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const on = favoriteToggle(`poi:${poi.id}`)
+    fav.classList.toggle('isOn', on)
+    fav.textContent = on ? '♥' : '♡'
+  })
+
+  const pick = () => {
+    recentSearchesAdd(poi.name)
+    selectPoi(poi)
+  }
+  row.addEventListener('click', (ev) => {
+    if ((ev.target as HTMLElement).closest('.favBtn')) return
+    pick()
+  })
   row.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') selectPoi(poi)
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      pick()
+    }
   })
   return row
 }
 
 let currentSelection: MapSelection | null = null
+
+/** Updated when “Use my location” succeeds or when opening directions acquires a GPS fix. */
+let lastKnownUserLatLng: LatLng | null = null
+
+const openGoogleMapsDirectionsFromUser = createDirectionsOpener(
+  () => lastKnownUserLatLng ?? (currentSelection?.kind === 'location' ? currentSelection.latlng : null),
+  (ll) => {
+    lastKnownUserLatLng = ll
+  },
+  { travelMode: 'walking' }
+)
 
 const map = createMap(el<HTMLDivElement>('map'), {
   defaultCenter: DEFAULT_CENTER,
@@ -825,22 +1242,6 @@ function selectPoi(poi: Poi) {
   map.setMarker(currentSelection, { flyTo: true })
 }
 
-function runHotelPicker(query: string) {
-  setLoading(hotelPickerResults)
-  searchHotels(query)
-    .then((hotels) => {
-      clearResults(hotelPickerResults)
-      if (hotels.length === 0) {
-        showEmpty(hotelPickerResults, 'Try a district like “Sultanahmet” or “Beyoğlu”.')
-        return
-      }
-      for (const hotel of hotels) hotelPickerResults.appendChild(makeHotelRow(hotel))
-    })
-    .catch(() => {
-      showEmpty(hotelPickerResults, 'Mock search failed. Reload the page.')
-    })
-}
-
 function debounce<T extends unknown[]>(fn: (...args: T) => void, ms: number) {
   let timer: number | null = null
   return (...args: T) => {
@@ -849,67 +1250,22 @@ function debounce<T extends unknown[]>(fn: (...args: T) => void, ms: number) {
   }
 }
 
-const debouncedHotelPicker = debounce((value: string) => runHotelPicker(value), 220)
-
-hotelPickerInput.addEventListener('input', () => {
-  debouncedHotelPicker(hotelPickerInput.value)
-})
-
-hotelPickerInput.addEventListener('focus', () => {
-  if (!hotelPickerInput.value.trim()) runHotelPicker('')
-})
-
 globalSearchInput.addEventListener('input', () => {
   debouncedGlobalSearch(globalSearchInput.value)
 })
 
 const debouncedGlobalSearch = debounce((query: string) => {
-  setLoading(globalSearchResults)
-  searchEverything(query)
-    .then((items) => {
-      clearResults(globalSearchResults)
-      const filtered = applyCategoryToSearchResults(items)
-      if (filtered.length === 0) {
-        showEmpty(
-          globalSearchResults,
-          items.length === 0
-            ? 'Try “Hagia Sophia”, “Grand Bazaar”, or a district name.'
-            : 'No matches for this category—set category to “All categories”.'
-        )
-        return
-      }
-      for (const item of filtered) {
-        if (item.kind === 'hotel') globalSearchResults.appendChild(makeHotelRow(item.hotel))
-        else globalSearchResults.appendChild(makePoiRow(item.poi))
-      }
-    })
-    .catch(() => showEmpty(globalSearchResults, 'Search failed. Reload the page.'))
-}, 220)
+  void execGlobalSearch(query, globalSearchResults)
+}, 140)
 
 globalSearchInput.addEventListener('focus', () => {
   if (!globalSearchInput.value.trim()) {
-    setLoading(globalSearchResults)
-    searchEverything('')
-      .then((items) => {
-        clearResults(globalSearchResults)
-        const filtered = applyCategoryToSearchResults(items)
-        if (filtered.length === 0) {
-          showEmpty(globalSearchResults, 'No matches for this category—set category to “All categories”.')
-          return
-        }
-        for (const item of filtered) {
-          if (item.kind === 'hotel') globalSearchResults.appendChild(makeHotelRow(item.hotel))
-          else globalSearchResults.appendChild(makePoiRow(item.poi))
-        }
-      })
-      .catch(() => showEmpty(globalSearchResults, 'Suggestions failed.'))
+    renderDiscoveryPanel(globalSearchResults)
   }
 })
 
 const locationStatus = el<HTMLDivElement>('locationStatus')
 const useMyLocationBtn = el<HTMLButtonElement>('useMyLocationBtn')
-const filterCategory = el<HTMLSelectElement>('filterCategory')
-const filterWhen = el<HTMLSelectElement>('filterWhen')
 
 function startGeolocation(statusEl: HTMLElement) {
   statusEl.textContent = ''
@@ -929,11 +1285,11 @@ function startGeolocation(statusEl: HTMLElement) {
         kind: 'location'
       }
       currentSelection = selection
+      lastKnownUserLatLng = selection.latlng
       setChip(currentSelection)
       map.setMarker(currentSelection, { flyTo: true })
       void showNearbyMatches(selection.latlng)
-      statusEl.textContent =
-        'Location set on the Istanbul map. Tap the map to fine-tune or search for a POI.'
+      statusEl.textContent = ''
     },
     () => {
       statusEl.textContent =
@@ -948,10 +1304,52 @@ useMyLocationBtn.addEventListener('click', () => startGeolocation(locationStatus
 function onFilterChange() {
   debouncedGlobalSearch(globalSearchInput.value)
   if (currentSelection) setChip(currentSelection)
+  if (currentSelection?.kind === 'location') {
+    void showNearbyMatches(currentSelection.latlng)
+  }
 }
 
-filterCategory.addEventListener('change', onFilterChange)
-filterWhen.addEventListener('change', onFilterChange)
+function wireCategoryBubbles() {
+  const buttons = document.querySelectorAll<HTMLButtonElement>('.categoryBubble')
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('isActive')) return
+      buttons.forEach((b) => {
+        const on = b === btn
+        b.classList.toggle('isActive', on)
+        b.setAttribute('aria-pressed', String(on))
+      })
+      onFilterChange()
+    })
+  })
+}
+
+wireCategoryBubbles()
+
+function wireVisitCalendar(): void {
+  const prev = document.getElementById('visitCalPrev')
+  const next = document.getElementById('visitCalNext')
+  const clear = document.getElementById('visitCalClear')
+  const hidden = document.getElementById('visitDatePicker') as HTMLInputElement | null
+
+  prev?.addEventListener('click', () => {
+    visitCalView = new Date(visitCalView.getFullYear(), visitCalView.getMonth() - 1, 1)
+    clampVisitCalViewToRange()
+    renderVisitCalendar()
+  })
+  next?.addEventListener('click', () => {
+    visitCalView = new Date(visitCalView.getFullYear(), visitCalView.getMonth() + 1, 1)
+    clampVisitCalViewToRange()
+    renderVisitCalendar()
+  })
+  clear?.addEventListener('click', () => {
+    if (hidden) hidden.value = ''
+    renderVisitCalendar()
+    onFilterChange()
+  })
+}
+
+wireVisitCalendar()
 
 function wireOpenMapsButton(btn: HTMLButtonElement) {
   btn.addEventListener('click', () => {
@@ -973,18 +1371,30 @@ function initForecastSheetCollapse() {
 
   const mq = window.matchMedia('(max-width: 768px)')
   let collapsed = mq.matches
+  let peekLocked = false
   const SWIPE_PX = 52
   let ignoreNextToggleClick = false
+
+  const syncDesktopPeek = () => {
+    sheetRoot.classList.toggle('isPeekLocked', peekLocked)
+    sheetToggle.setAttribute('aria-expanded', String(peekLocked))
+    sheetToggle.setAttribute(
+      'aria-label',
+      peekLocked ? 'Tuck place detail into the corner' : 'Pin place detail open (or hover the panel to preview)'
+    )
+  }
 
   const sync = () => {
     if (!mq.matches) {
       collapsed = false
       sheetRoot.classList.remove('isCollapsed')
       mapStage.classList.remove('hasCollapsedSheet')
-      sheetToggle.setAttribute('aria-expanded', 'true')
-      sheetToggle.setAttribute('aria-label', 'Collapse place detail')
+      sheetRoot.classList.add('forecastSheet--peek')
+      syncDesktopPeek()
       return
     }
+    peekLocked = false
+    sheetRoot.classList.remove('isPeekLocked')
     sheetRoot.classList.toggle('isCollapsed', collapsed)
     mapStage.classList.toggle('hasCollapsedSheet', collapsed)
     sheetToggle.setAttribute('aria-expanded', String(!collapsed))
@@ -993,8 +1403,18 @@ function initForecastSheetCollapse() {
 
   const applyResize = () => window.dispatchEvent(new Event('resize'))
 
+  sheetRoot.addEventListener('icc-forecast-peek-reset', () => {
+    peekLocked = false
+    sync()
+  })
+
   sheetToggle.addEventListener('click', () => {
-    if (!mq.matches) return
+    if (!mq.matches) {
+      peekLocked = !peekLocked
+      syncDesktopPeek()
+      applyResize()
+      return
+    }
     if (ignoreNextToggleClick) {
       ignoreNextToggleClick = false
       return
@@ -1061,18 +1481,72 @@ function initForecastSheetCollapse() {
     t.addEventListener('pointercancel', endSwipe)
   }
 
-  mq.addEventListener('change', sync)
+  mq.addEventListener('change', () => {
+    collapsed = mq.matches
+    peekLocked = false
+    sync()
+  })
   sync()
 }
 
 initForecastSheetCollapse()
 
+function initIstanbulHero() {
+  const hero = document.getElementById('istanbulHero')
+  const btn = document.getElementById('istanbulHeroDismiss')
+  if (!hero) return
+  const exit = () => {
+    hero.classList.add('istanbulHero--out')
+    window.setTimeout(() => {
+      hero.remove()
+      document.querySelector('.page--premium')?.classList.add('page--unveil')
+    }, 520)
+  }
+  btn?.addEventListener('click', exit)
+}
+
+function initMapFullscreen() {
+  const btn = document.getElementById('mapFullscreenBtn')
+  const stage = document.getElementById('mapStage')
+  if (!btn || !stage) return
+  btn.addEventListener('click', () => {
+    const on = stage.classList.toggle('mapStage--fullscreen')
+    document.body.classList.toggle('body--map-fs', on)
+    btn.setAttribute('aria-pressed', String(on))
+    map.relayout()
+    window.setTimeout(() => map.relayout(), 320)
+  })
+}
+
+function initMobileDock() {
+  document.getElementById('dockExplore')?.addEventListener('click', () => {
+    document.getElementById('explorePanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+  document.getElementById('dockMap')?.addEventListener('click', () => {
+    document.getElementById('mapStage')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+}
+
+function initPageEnter() {
+  requestAnimationFrame(() => {
+    document.querySelector('.page--premium')?.classList.add('page--mounted')
+  })
+}
+
+initPageEnter()
+initIstanbulHero()
+void import('./features/istanbulExplorer/mount').then(({ mountIstanbulExplorer }) => {
+  mountIstanbulExplorer(openGoogleMapsDirectionsFromUser)
+})
+
 // Ask for location permission right away (for “open app → GPS → recommendations” flow).
 // If denied, the user can still search or tap the map.
 window.setTimeout(() => {
-  setActiveTab('location')
   startGeolocation(locationStatus)
 }, 160)
+syncVisitDatePickerBounds()
 setChip(null)
-runHotelPicker('')
+
+initMapFullscreen()
+initMobileDock()
 
