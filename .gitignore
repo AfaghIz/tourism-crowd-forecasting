@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
+.venv/
+venv/
+.venv-lstm/
+
+# Node (if frontend exists)
+node_modules/
+
+# Env files
+.env
+
+# Mac/Windows junk
+.DS_Store
+Thumbs.db
+.matplotlib-cache/
+
+# --- Project-specific ---
+notebooks/data/.DS_Store
+data/raw/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_points_shp.cpg
+data/raw/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_points_shp.dbf
+data/raw/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_points_shp.prj
+data/raw/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_points_shp.shp
+data/raw/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_points_shp.shx
+data/raw/hotosm_tur_points_of_interest_points_shp/hotosm_tur_points_of_interest_points_shp/Readme.txt
+notebooks/_data/.DS_Store
+.vscode/settings.json
+backend/.DS_Store
+data/.DS_Store
+data/processed/otm_crowdindex_workflow_matrix_weekly.csv
+data/processed/otm_crowdindex_weekly_combined.csv
+outputs/
