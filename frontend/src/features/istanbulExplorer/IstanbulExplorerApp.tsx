@@ -1,9 +1,13 @@
-import { useCallback, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { useExplorerStore } from './store'
 import { EXPLORER_POIS, SIDEBAR_ROUTES } from './data'
 import { buildCurvedRoutePath, orderByRouteMode, walkFromPrevious } from './geometry'
-import type { ExplorerPOI, ExplorerTag, RouteMode } from './types'
+import type { ExplorerPOI, ExplorerTag, RouteMode, ThemeMode } from './types'
+import {
+  mapThreadToRoutePlate,
+  routePlateRectForViewBoxHeight
+} from './istanbulExplorerShellMask'
 import iconBlueMosque from '../../ui/blue mosque png.webp'
 import iconDolmabahce from '../../ui/dolmabache png.png'
 import iconBosphorusBridge from '../../ui/istanbul bridge.avif'
@@ -100,6 +104,111 @@ function StopListGlyph({
   )
 }
 
+/** Mobile: no landmark map — lightweight “live processing” shell so the band still feels active. */
+function MobileRouteActivityShell({
+  theme,
+  playback
+}: {
+  theme: ThemeMode
+  playback: boolean
+}) {
+  const night = theme === 'night'
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label="Route overview is summarized on this device; use the list below for stops."
+      className={`relative isolate min-h-[min(220px,36vh)] w-full overflow-hidden rounded-2xl border ${
+        night
+          ? 'border-white/14 bg-[#0e1824]/88'
+          : 'border-[#2a241c]/12 bg-gradient-to-br from-[#f6f1e8] via-[#faf6ee] to-[#ebe4d6]'
+      }`}
+    >
+      <div
+        aria-hidden
+        className={`pointer-events-none absolute inset-0 opacity-90 ${
+          night
+            ? 'bg-[radial-gradient(ellipse_85%_70%_at_30%_20%,rgba(45,106,143,0.35),transparent),radial-gradient(ellipse_70%_55%_at_78%_72%,rgba(217,119,87,0.22),transparent)]'
+            : 'bg-[radial-gradient(ellipse_80%_65%_at_25%_25%,rgba(45,106,143,0.12),transparent),radial-gradient(ellipse_65%_50%_at_82%_68%,rgba(196,165,116,0.2),transparent)]'
+        }`}
+      />
+      <svg
+        aria-hidden
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        viewBox="0 0 320 120"
+        preserveAspectRatio="none"
+      >
+        <motion.path
+          d="M 12 78 C 52 22, 108 102, 168 48 S 268 92, 308 36"
+          fill="none"
+          stroke={night ? 'rgba(120, 190, 210, 0.42)' : 'rgba(45, 106, 143, 0.38)'}
+          strokeWidth={2.2}
+          strokeLinecap="round"
+          strokeDasharray="6 14"
+          initial={false}
+          animate={
+            playback
+              ? { strokeDashoffset: [0, -240] }
+              : { strokeDashoffset: [0, -80, 0] }
+          }
+          transition={
+            playback
+              ? { duration: 10, ease: 'linear', repeat: Infinity }
+              : { duration: 5.5, ease: 'easeInOut', repeat: Infinity }
+          }
+          opacity={night ? 0.55 : 0.5}
+        />
+      </svg>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-hidden opacity-[0.55]"
+      >
+        <div
+          className="ie-mobile-activity__shimmer absolute -left-1/2 top-0 h-full w-[45%] bg-gradient-to-r from-transparent via-white/25 to-transparent"
+          style={{ animationDelay: '0.4s' }}
+        />
+      </div>
+      {[
+        { l: '14%', t: '42%', d: '0s' },
+        { l: '38%', t: '58%', d: '0.35s' },
+        { l: '62%', t: '36%', d: '0.7s' },
+        { l: '84%', t: '52%', d: '1.05s' }
+      ].map((dot) => (
+        <span
+          key={dot.l}
+          aria-hidden
+          className={`ie-mobile-activity__dot absolute h-2 w-2 rounded-full ${
+            night ? 'bg-cyan-300/70 shadow-[0_0_12px_rgba(34,211,238,0.35)]' : 'bg-[#2d6a8f]/55'
+          }`}
+          style={{ left: dot.l, top: dot.t, animationDelay: dot.d }}
+        />
+      ))}
+      <div
+        className={`pointer-events-none absolute bottom-3 left-4 right-4 flex items-end justify-between gap-3 ${
+          night ? 'text-white/55' : 'text-[#3a342c]/65'
+        }`}
+      >
+        <p className="m-0 max-w-[72%] text-[11px] font-medium leading-snug">
+          Blending crowd signals for your picks…
+        </p>
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+            playback
+              ? night
+                ? 'bg-emerald-500/25 text-emerald-200/95'
+                : 'bg-emerald-600/15 text-emerald-900/90'
+              : night
+                ? 'bg-white/10 text-white/70'
+                : 'bg-black/8 text-[#2a241c]/75'
+          }`}
+        >
+          {playback ? 'Live' : 'Sync'}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export function IstanbulExplorerApp({
   openDirections
 }: {
@@ -123,9 +232,6 @@ export function IstanbulExplorerApp({
   const setFilterFabOpen = useExplorerStore((s) => s.setFilterFabOpen)
 
   const { ordered } = useFilteredOrdered()
-
-  const points = useMemo(() => ordered.map((p) => p.thread as [number, number]), [ordered])
-  const pathD = useMemo(() => buildCurvedRoutePath(points, 0.42), [points])
 
   const shellRef = useRef<HTMLDivElement>(null)
   const mx = useMotionValue(0)
@@ -155,6 +261,89 @@ export function IstanbulExplorerApp({
     setZoom((z) => Math.min(1.55, Math.max(0.85, z - e.deltaY * 0.0015)))
   }, [])
 
+  const routeCanvasRef = useRef<HTMLDivElement>(null)
+  const [videoStackHeightPx, setVideoStackHeightPx] = useState<number | null>(null)
+
+  /**
+   * Size the route canvas so its bottom lines up with the lower of the search / trip
+   * video stacks (not just matching their height — padding above the canvas is included).
+   */
+  useLayoutEffect(() => {
+    const left = document.querySelector<HTMLElement>('.panel--search > .sideVideoStack')
+    const trip = document.querySelector<HTMLElement>('.sideVideoStack--trip')
+    const mapColumn = document.querySelector<HTMLElement>('.mapColumn')
+    if (!left && !trip) return
+
+    const read = () => {
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        setVideoStackHeightPx(null)
+        return
+      }
+      const canvas = routeCanvasRef.current
+      const leftB = left?.getBoundingClientRect().bottom ?? 0
+      const tripB = trip?.getBoundingClientRect().bottom ?? 0
+      const targetBottom = Math.max(leftB, tripB)
+
+      if (canvas && targetBottom > 1) {
+        const z = Math.max(0.85, Math.min(1.55, zoom))
+        const top = canvas.getBoundingClientRect().top
+        const h = Math.round((targetBottom - top) / z)
+        if (h > 0) setVideoStackHeightPx(Math.max(160, h))
+        return
+      }
+
+      const hl = left ? Math.round(left.getBoundingClientRect().height) : 0
+      const ht = trip ? Math.round(trip.getBoundingClientRect().height) : 0
+      const h = Math.max(hl, ht)
+      if (h > 0) setVideoStackHeightPx(Math.max(160, h))
+    }
+
+    read()
+    const ro = new ResizeObserver(read)
+    if (left) ro.observe(left)
+    if (trip) ro.observe(trip)
+    if (mapColumn) ro.observe(mapColumn)
+    window.addEventListener('resize', read)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', read)
+    }
+  }, [zoom])
+
+  /** Match SVG viewBox aspect to the route canvas so `meet` does not letterbox the frosted plate vertically. */
+  const [routeViewBoxH, setRouteViewBoxH] = useState(100)
+  useLayoutEffect(() => {
+    const el = routeCanvasRef.current
+    if (!el) return
+    const read = () => {
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) return
+      const w = el.clientWidth
+      const h = el.clientHeight
+      if (w < 8 || h < 8) return
+      setRouteViewBoxH(Math.max(100, (h / w) * 240))
+    }
+    read()
+    const ro = new ResizeObserver(read)
+    ro.observe(el)
+    window.addEventListener('resize', read)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', read)
+    }
+  }, [videoStackHeightPx, zoom])
+
+  const routePlateRect = useMemo(
+    () => routePlateRectForViewBoxHeight(routeViewBoxH),
+    [routeViewBoxH]
+  )
+
+  const points = useMemo(
+    () =>
+      ordered.map((p) => mapThreadToRoutePlate(p.thread as [number, number], routePlateRect)),
+    [ordered, routePlateRect]
+  )
+  const pathD = useMemo(() => buildCurvedRoutePath(points, 0.42), [points])
+
   const hourTint =
     typeof window !== 'undefined'
       ? new Date().getHours()
@@ -183,48 +372,54 @@ export function IstanbulExplorerApp({
   const matteId = `ieMatteLight-${svgUid}`
   const routeStroke = `url(#${gradId})`
 
+  const regionShellFilter =
+    theme === 'night'
+      ? 'drop-shadow(0 0 0.75px rgba(255,255,255,0.14)) drop-shadow(0 22px 56px rgba(0,0,0,0.55))'
+      : 'drop-shadow(0 0 0.5px rgba(42,36,28,0.18)) drop-shadow(0 16px 44px rgba(42,36,28,0.18))'
+
   return (
-    <div
-      data-explorer-theme={theme}
-      className={`ie-root group relative isolate overflow-hidden rounded-[26px] border transition-colors duration-500 ${
-        theme === 'night'
-          ? 'border-white/10 bg-gradient-to-br from-[#0c1520] via-[#121c28] to-[#0a1018] shadow-[0_40px_120px_-40px_rgba(0,0,0,0.85)]'
-          : 'border-[#2a241c]/18 bg-[#f1e8db] shadow-[0_30px_90px_-35px_rgba(42,36,28,0.28)]'
-      }`}
-    >
-      {theme === 'day' && (
-        <div
+    <div className="relative isolate">
+      <div className="transition-[filter] duration-500" style={{ filter: regionShellFilter }}>
+      <div
+        data-explorer-theme={theme}
+        className={`ie-root group relative isolate overflow-hidden transition-[background-color] duration-500 ${
+          theme === 'night'
+            ? 'bg-gradient-to-br from-[#0c1520] via-[#121c28] to-[#0a1018]'
+            : 'bg-transparent'
+        }`}
+      >
+      {/* Cursor-follow ambient light (night only — day stays clear behind the map) */}
+      {theme === 'night' && (
+        <motion.div
           aria-hidden
-          className="pointer-events-none absolute inset-0 z-0 rounded-[inherit]"
-          style={{
-            backgroundImage: `repeating-linear-gradient(45deg, rgba(42,36,28,0.055) 0px, rgba(42,36,28,0.055) 1px, transparent 1px, transparent 14px),
-              repeating-linear-gradient(-45deg, rgba(42,36,28,0.055) 0px, rgba(42,36,28,0.055) 1px, transparent 1px, transparent 14px)`
-          }}
+          className="pointer-events-none absolute inset-0 z-0 opacity-[0.22]"
+          style={{ backgroundImage: glowBg }}
         />
       )}
-      {/* Cursor-follow ambient light */}
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 z-0 opacity-[0.22]"
-        style={{ backgroundImage: glowBg }}
-      />
       <div
         ref={shellRef}
         onPointerMove={onShellMove}
-        className="relative z-[1] flex flex-col gap-5 p-4 sm:p-5"
+        className="relative z-[1] flex flex-col gap-3 px-0 pt-0 pb-2 sm:gap-4 sm:pb-3 lg:pb-0"
       >
         <div className="min-w-0">
-        {/* Route canvas — map sits on shell background (no dark card / inner washes) */}
-        <div
-          className="relative min-h-[300px] overflow-visible lg:min-h-[420px]"
-          onWheel={onWheel}
-        >
+        {/* Desktop: full landmark route map; mobile: activity shell only (no pins / map). */}
+        <div className="relative w-full min-h-0 max-w-full overflow-hidden py-1 pr-0 sm:pr-0.5">
+          <div className="lg:hidden">
+            <MobileRouteActivityShell theme={theme} playback={playback} />
+          </div>
           <div
-            className="relative isolate mx-auto aspect-square w-full max-w-[min(880px,min(92vw,85vh))] origin-center transition-transform duration-300 ease-out"
-            style={{ transform: `scale(${zoom})` }}
+            ref={routeCanvasRef}
+            onWheel={onWheel}
+            className="relative isolate hidden min-h-0 w-full max-w-full origin-center overflow-hidden transition-transform duration-300 ease-out lg:block"
+            style={{
+              transform: `scale(${zoom})`,
+              ...(videoStackHeightPx
+                ? { height: videoStackHeightPx, maxHeight: videoStackHeightPx }
+                : { minHeight: 'min(420px, 50vh)' })
+            }}
           >
             <svg
-              viewBox="0 0 100 100"
+              viewBox={`-70 0 240 ${routeViewBoxH}`}
               className="absolute inset-0 block h-full w-full overflow-visible"
               preserveAspectRatio="xMidYMid meet"
               role="img"
@@ -260,9 +455,21 @@ export function IstanbulExplorerApp({
                 </filter>
               </defs>
 
+              <rect
+                {...routePlateRect}
+                fill={theme === 'night' ? 'rgba(255,255,255,0.085)' : 'rgba(255,252,247,0.55)'}
+                stroke={theme === 'night' ? 'rgba(255,255,255,0.22)' : 'rgba(42,36,28,0.14)'}
+                strokeWidth={0.55}
+                strokeLinejoin="round"
+                pointerEvents="none"
+              />
+
               {/* Segment highlights — paint underneath markers */}
               {ordered.slice(0, -1).map((_, i) => {
-                const segPts = [ordered[i].thread, ordered[i + 1].thread] as [number, number][]
+                const segPts = [
+                  mapThreadToRoutePlate(ordered[i].thread as [number, number], routePlateRect),
+                  mapThreadToRoutePlate(ordered[i + 1].thread as [number, number], routePlateRect)
+                ] as [number, number][]
                 const sd = buildCurvedRoutePath(segPts, 0.42)
                 const lo = incidentOpacity(i, i + 1)
                 return (
@@ -316,9 +523,10 @@ export function IstanbulExplorerApp({
               {/* Stops share the path viewBox so icons sit on the thread */}
               {ordered.map((p) => {
                 const pop = p.popularity / 100
-                const baseR = 3.05 + pop * 2.35
+                /** Slightly larger than before so landmark photos stay readable on tall route plates. */
+                const baseR = (3.15 + pop * 2.45) * 1.18
                 /** Bounding square for PNG markers — `meet` keeps transparent silhouette, no circular mask. */
-                const imgBox = baseR * 3.35
+                const imgBox = baseR * 3.55
                 const active = hoveredId === p.id || selectedId === p.id
                 const fav = favorites.has(p.id)
                 const am = ACCENT_MARKER[p.accentKey]
@@ -326,12 +534,17 @@ export function IstanbulExplorerApp({
                 const label = `${p.name}. Crowd ${p.crowdScore} of 100. Open walking directions in Google Maps.`
                 const favX = iconSrc ? imgBox * 0.38 : baseR * 0.75
                 const favY = iconSrc ? -imgBox * 0.38 : -baseR * 0.75
+                const [sx, sy] = mapThreadToRoutePlate(p.thread as [number, number], routePlateRect)
                 return (
-                  <g key={p.id} transform={`translate(${p.thread[0]}, ${p.thread[1]})`}>
+                  <g key={p.id} transform={`translate(${sx}, ${sy})`}>
                     <motion.g
-                      style={{ cursor: 'pointer', transformOrigin: '0px 0px' }}
+                      style={{ cursor: 'pointer', transformOrigin: '0px 0px', outline: 'none' }}
                       whileHover={{ scale: 1.06 }}
                       whileTap={{ scale: 0.96 }}
+                      onMouseDown={(e) => {
+                        // Pointer focus on SVG <g> draws a heavy default outline; keep Tab focus for keyboard.
+                        e.preventDefault()
+                      }}
                       onMouseEnter={() => setHoveredId(p.id)}
                       onMouseLeave={() => setHoveredId(null)}
                       onClick={(e) => {
@@ -411,7 +624,7 @@ export function IstanbulExplorerApp({
                           y={favY}
                           textAnchor="middle"
                           dominantBaseline="central"
-                          fontSize={2.15}
+                          fontSize={2.45}
                           fill="#fda4af"
                           style={{ pointerEvents: 'none', userSelect: 'none' }}
                         >
@@ -423,27 +636,39 @@ export function IstanbulExplorerApp({
                 )
               })}
             </svg>
-          </div>
 
-          {/* HUD — tiny invite to tap pins */}
-          <div className="pointer-events-none absolute left-3 top-3 z-[50] flex max-w-[min(220px,calc(100%-1.5rem))] flex-wrap gap-1.5">
-            <span
-              className={`rounded-full px-2.5 py-1 text-[10px] font-normal leading-tight shadow-sm backdrop-blur-md ${
-                theme === 'night'
-                  ? 'border border-white/15 bg-white/[0.12] text-white/90'
-                  : 'border border-[#c4a574]/35 bg-white/70 text-[#5a5046] shadow-[0_2px_12px_-4px_rgba(90,80,70,0.2)]'
-              }`}
-            >
-              Tap any pin for directions to Istanbul’s top spots ✨
-            </span>
             {playback && (
-              <span className="rounded-full border border-emerald-400/35 bg-emerald-500/80 px-2 py-0.5 text-[10px] font-medium text-white shadow-sm">
-                Playback
-              </span>
+              <div className="pointer-events-none absolute right-2 top-2 z-[50] sm:right-2.5 sm:top-2.5">
+                <span className="rounded-full border border-emerald-400/35 bg-emerald-500/80 px-2 py-0.5 text-[10px] font-medium text-white shadow-sm">
+                  Playback
+                </span>
+              </div>
             )}
           </div>
+
+          <aside
+            aria-label="Tap any pin for directions to Istanbul’s top spots"
+            className="pointer-events-none absolute right-0 top-1/2 z-[50] hidden -translate-y-1/2 translate-x-1.5 flex-col items-center justify-center sm:translate-x-2.5 lg:flex"
+          >
+            <p
+              className={`m-0 flex max-h-full min-h-0 items-center justify-center overflow-hidden text-center text-[9px] font-bold leading-[1.2] tracking-wide sm:text-[10.5px] md:text-[11px] ${
+                theme === 'night'
+                  ? 'text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.92),0_0_14px_rgba(0,0,0,0.5)]'
+                  : 'text-[#1a1612] [text-shadow:0_0_2px_rgba(255,255,255,0.95),0_1px_3px_rgba(0,0,0,0.45)]'
+              }`}
+              style={{
+                writingMode: 'vertical-lr',
+                textOrientation: 'upright',
+                WebkitTextOrientation: 'upright'
+              }}
+            >
+              Tap for directions
+            </p>
+          </aside>
         </div>
         </div>
+      </div>
+      </div>
       </div>
 
       {/* Mobile sheet */}
@@ -600,7 +825,7 @@ function MobileInsightRail({
                       type="button"
                       onClick={() => setSelectedId(p.id)}
                       className={`flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-[13px] ${
-                        selectedId === p.id ? 'bg-black/10 ring-1 ring-black/15' : 'hover:bg-black/5'
+                        selectedId === p.id ? 'bg-black/10' : 'hover:bg-black/5'
                       }`}
                     >
                       <StopListGlyph id={p.id} emoji={p.icon} matteFilterId={matteFilterId} />
@@ -661,7 +886,7 @@ function DetailSheet({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[50] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+        className="fixed inset-0 z-[50] max-[768px]:z-[1200] flex items-end justify-center bg-black/45 p-4 sm:items-center"
       onClick={onClose}
     >
       <motion.div

@@ -12,7 +12,7 @@ export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; l
   return R * c
 }
 
-/** Smooth quadratic segments between normalized canvas points (0–100). */
+/** Smooth quadratic segments between points in SVG user space (route plate coords). */
 export function buildCurvedRoutePath(points: [number, number][], bendFactor = 0.38): string {
   if (points.length === 0) return ''
   if (points.length === 1) {

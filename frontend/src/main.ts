@@ -67,11 +67,18 @@ const VR_CLIPS: readonly { id: string; iframeTitle: string }[] = [
   }
 ]
 
-/** Muted autoplay embeds for the search column (YouTube requires mute for autoplay). */
-const SIDE_VIDEO_STACK_HTML = VR_CLIPS.map((clip) => {
-  const src = `https://www.youtube.com/embed/${encodeURIComponent(clip.id)}?autoplay=1&mute=1&loop=1&playlist=${encodeURIComponent(clip.id)}&playsinline=1&controls=0&modestbranding=1&rel=0`
-  return `<div class="sideVideoTile"><iframe class="sideVideoIframe" src="${src}" title="${escapeHtml(clip.iframeTitle)}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`
-}).join('')
+/** Muted autoplay embeds (YouTube requires mute for autoplay). */
+function sideVideoTilesHtml(clips: readonly { id: string; iframeTitle: string }[]): string {
+  return clips
+    .map((clip) => {
+      const src = `https://www.youtube.com/embed/${encodeURIComponent(clip.id)}?autoplay=1&mute=1&loop=1&playlist=${encodeURIComponent(clip.id)}&playsinline=1&controls=0&modestbranding=1&rel=0`
+      return `<div class="sideVideoTile"><iframe class="sideVideoIframe" src="${src}" title="${escapeHtml(clip.iframeTitle)}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`
+    })
+    .join('')
+}
+
+const SIDE_VIDEO_STACK_HTML = sideVideoTilesHtml(VR_CLIPS.slice(0, 4))
+const SIDE_VIDEO_TRIP_STACK_HTML = sideVideoTilesHtml(VR_CLIPS.slice(4, 6))
 
 const POI_CATEGORIES = [
   'all',
@@ -119,25 +126,6 @@ if (!root) throw new Error('Missing #app mount element')
 
 root.innerHTML = `
   <div class="page page--premium page--retro">
-    <div id="istanbulHero" class="istanbulHero" role="dialog" aria-modal="true" aria-label="Welcome">
-      <div class="istanbulHero__bg" aria-hidden="true"></div>
-      <iframe
-        class="istanbulHero__map"
-        title="İstanbul 3B haritası — etkileşimli önizleme"
-        src="https://3bistanbul.ibb.gov.tr/"
-        loading="eager"
-        referrerpolicy="no-referrer-when-downgrade"
-      ></iframe>
-      <div class="istanbulHero__scrim" aria-hidden="true"></div>
-      <div class="istanbulHero__crt" aria-hidden="true"></div>
-      <div class="istanbulHero__content">
-        <p class="istanbulHero__eyebrow">Insert coin · demo</p>
-        <h2 class="istanbulHero__title">Istanbul<br /><span class="istanbulHero__titleSub">Crowd Quest</span></h2>
-        <p class="istanbulHero__sub">Crowd signals, map pins, and directions — arcade edition.</p>
-        <button type="button" class="istanbulHero__cta btn btnPrimary" id="istanbulHeroDismiss">PRESS START — MAP</button>
-      </div>
-    </div>
-
     <header class="topbar topbar--slim" role="banner">
       <h1 class="topbar__title">İstanbul Crowd Compass</h1>
     </header>
@@ -243,7 +231,7 @@ root.innerHTML = `
         </div>
       </section>
 
-        <section class="spotGuide card popularPathBelow" aria-label="Landmarks">
+        <section class="spotGuide popularPathBelow" aria-label="Landmarks">
           <div class="popularPathMount spotGuide__mount" id="popularPathMount"></div>
         </section>
       </div>
@@ -290,6 +278,7 @@ root.innerHTML = `
                 </button>
               </div>
             </div>
+            <div class="sideVideoStack sideVideoStack--trip" aria-label="More Istanbul video clips">${SIDE_VIDEO_TRIP_STACK_HTML}</div>
           </div>
         </section>
       </div>
@@ -834,7 +823,7 @@ function rankedRowPhotoUrl(rec: RankedRecommendation): string | undefined {
   return pid ? thumbUrlForPoiId(pid) : undefined
 }
 
-/** Alternative row thumbnail (matches ``richThumbBlock`` proxy + fallback behavior). */
+/** Alternative row thumbnail (Google proxy when coords exist, else photo or gradient + glyph). */
 function altCardThumbBlock(opts: {
   photoUrl?: string
   placeName: string
@@ -877,52 +866,6 @@ function altCardThumbBlock(opts: {
   return `<div class="altCard__thumb" style="background:${escapeHtml(opts.gradientCss)}"><span class="altCard__ic" aria-hidden="true">${opts.iconHtml}</span></div>`
 }
 
-/** Left thumbnail: Google Places proxy when coordinates exist, else catalog photo or gradient + glyph. */
-function richThumbBlock(opts: {
-  photoUrl?: string
-  placeName?: string
-  lat?: number
-  lng?: number
-  gradientCss: string
-  iconHtml: string
-  dotHtml?: string
-}): string {
-  const dot = opts.dotHtml ?? ''
-  const lat = opts.lat
-  const lng = opts.lng
-  const hasCoords =
-    typeof lat === 'number' &&
-    typeof lng === 'number' &&
-    Number.isFinite(lat) &&
-    Number.isFinite(lng)
-  const nm = opts.placeName?.trim()
-  const useProxy = Boolean(nm && hasCoords)
-  const photoUrl = opts.photoUrl?.trim()
-  const fbHttps = photoUrl?.startsWith('https://') ? photoUrl : undefined
-
-  if (useProxy && nm) {
-    const proxyEsc = escapeHtml(
-      placePhotoProxyUrl({
-        name: nm,
-        lat,
-        lng,
-        fallbackUrl: fbHttps
-      })
-    )
-    const bgEsc = escapeHtml(opts.gradientCss)
-    const dataFb = fbHttps ? ` data-fallback="${escapeHtml(fbHttps)}"` : ''
-    const onerr = fbHttps
-      ? ` onerror="this.onerror=null;if(this.dataset.fallback){this.src=this.dataset.fallback;this.removeAttribute('data-fallback');return;}this.remove()"`
-      : ` onerror="this.remove()"`
-    return `<div class="richThumb richThumb--photo" style="background:${bgEsc}"><span class="richThumb__ic" aria-hidden="true">${opts.iconHtml}</span><img class="richThumb__img" src="${proxyEsc}" alt="" loading="lazy" decoding="async"${dataFb}${onerr} />${dot}</div>`
-  }
-  if (photoUrl) {
-    const src = escapeHtml(photoUrl)
-    return `<div class="richThumb richThumb--photo"><img class="richThumb__img" src="${src}" alt="" loading="lazy" decoding="async" />${dot}</div>`
-  }
-  return `<div class="richThumb" style="background:${escapeHtml(opts.gradientCss)}"><span class="richThumb__ic" aria-hidden="true">${opts.iconHtml}</span>${dot}</div>`
-}
-
 function pickLatLngFromRankedRec(rec: RankedRecommendation): LatLng | null {
   const lat = typeof rec.lat === 'number' ? rec.lat : rec.lat != null ? Number(rec.lat) : NaN
   const lng =
@@ -957,10 +900,7 @@ function makeRankedRecommendationRow(rec: RankedRecommendation, index = 0): HTML
   const cat = String(rec.category ?? '')
   const crowd = String(rec.crowd_level_label ?? '')
   const expl = String(rec.explanation ?? rec.explanation_text ?? '')
-  const thumb = gradientThumbStyle(name)
-  const photoUrl = rankedRowPhotoUrl(rec)
   const llRec = pickLatLngFromRankedRec(rec)
-  const ic = categoryIcon(cat, 'poi')
   const badges = recommendationMicroBadges(rec)
     .map((t) => `<span class="microBadge">${escapeHtml(t)}</span>`)
     .join('')
@@ -970,17 +910,9 @@ function makeRankedRecommendationRow(rec: RankedRecommendation, index = 0): HTML
   const favOn = favoriteHas(favId)
 
   row.innerHTML = `
-    ${richThumbBlock({
-      photoUrl,
-      placeName: name,
-      lat: llRec?.lat,
-      lng: llRec?.lng,
-      gradientCss: thumb,
-      iconHtml: ic,
-      dotHtml: `<span class="crowdDot ${dot} richThumb__dot" aria-hidden="true"></span>`
-    })}
     <div class="richBody">
       <div class="richTop">
+        <span class="crowdDot ${dot}" aria-hidden="true"></span>
         <span class="richKind">Nearby</span>
         <span class="microAi">For you</span>
         <button type="button" class="favBtn ${favOn ? 'isOn' : ''}" aria-label="Save place">${favOn ? '♥' : '♡'}</button>
@@ -1076,7 +1008,6 @@ function setSkeletonResults(container: HTMLDivElement, rows = 5) {
     d.className = 'skelRow'
     d.style.setProperty('--i', String(i))
     d.innerHTML = `
-      <div class="skelThumb skelShimmer"></div>
       <div class="skelBody">
         <div class="skelLine skelLine--lg skelShimmer"></div>
         <div class="skelLine skelLine--sm skelShimmer"></div>
@@ -1095,20 +1026,10 @@ function makeHotelRow(hotel: Hotel, index = 0): HTMLElement {
   row.tabIndex = 0
   row.dataset.id = hotel.id
 
-  const thumb = gradientThumbStyle(hotel.name)
-  const ic = categoryIcon('Hotel', 'hotel')
   const favOn = favoriteHas(`hotel:${hotel.id}`)
   const micro = hotelCardBadges(hotel).map((t) => `<span class="microBadge">${escapeHtml(t)}</span>`).join('')
 
   row.innerHTML = `
-    ${richThumbBlock({
-      photoUrl: hotel.photoUrl,
-      placeName: hotel.name,
-      lat: hotel.lat,
-      lng: hotel.lng,
-      gradientCss: thumb,
-      iconHtml: ic
-    })}
     <div class="richBody">
       <div class="richTop">
         <span class="richKind">Hotel</span>
@@ -1152,20 +1073,10 @@ function makePoiRow(poi: Poi, index = 0): HTMLElement {
   row.tabIndex = 0
   row.dataset.id = poi.id
 
-  const thumb = gradientThumbStyle(poi.name)
-  const ic = categoryIcon(poi.category, 'poi')
   const favOn = favoriteHas(`poi:${poi.id}`)
   const micro = poiCardBadges(poi).map((t) => `<span class="microBadge">${escapeHtml(t)}</span>`).join('')
 
   row.innerHTML = `
-    ${richThumbBlock({
-      photoUrl: poi.photoUrl,
-      placeName: poi.name,
-      lat: poi.lat,
-      lng: poi.lng,
-      gradientCss: thumb,
-      iconHtml: ic
-    })}
     <div class="richBody">
       <div class="richTop">
         <span class="richKind">Sight</span>
@@ -1491,19 +1402,25 @@ function initForecastSheetCollapse() {
 
 initForecastSheetCollapse()
 
-function initIstanbulHero() {
-  const hero = document.getElementById('istanbulHero')
-  const btn = document.getElementById('istanbulHeroDismiss')
-  if (!hero) return
-  const exit = () => {
-    hero.classList.add('istanbulHero--out')
-    window.setTimeout(() => {
-      hero.remove()
-      document.querySelector('.page--premium')?.classList.add('page--unveil')
-    }, 520)
-  }
-  btn?.addEventListener('click', exit)
+function initPageEnter() {
+  requestAnimationFrame(() => {
+    const page = document.querySelector('.page--premium')
+    page?.classList.add('page--mounted', 'page--unveil')
+  })
 }
+
+initPageEnter()
+void import('./features/istanbulExplorer/mount').then(({ mountIstanbulExplorer }) => {
+  mountIstanbulExplorer(openGoogleMapsDirectionsFromUser)
+})
+
+// Ask for location permission right away (for “open app → GPS → recommendations” flow).
+// If denied, the user can still search or tap the map.
+window.setTimeout(() => {
+  startGeolocation(locationStatus)
+}, 160)
+syncVisitDatePickerBounds()
+setChip(null)
 
 function initMapFullscreen() {
   const btn = document.getElementById('mapFullscreenBtn')
@@ -1527,26 +1444,5 @@ function initMobileDock() {
   })
 }
 
-function initPageEnter() {
-  requestAnimationFrame(() => {
-    document.querySelector('.page--premium')?.classList.add('page--mounted')
-  })
-}
-
-initPageEnter()
-initIstanbulHero()
-void import('./features/istanbulExplorer/mount').then(({ mountIstanbulExplorer }) => {
-  mountIstanbulExplorer(openGoogleMapsDirectionsFromUser)
-})
-
-// Ask for location permission right away (for “open app → GPS → recommendations” flow).
-// If denied, the user can still search or tap the map.
-window.setTimeout(() => {
-  startGeolocation(locationStatus)
-}, 160)
-syncVisitDatePickerBounds()
-setChip(null)
-
 initMapFullscreen()
 initMobileDock()
-

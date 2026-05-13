@@ -17,7 +17,7 @@ export type PopularIstanbulPlace = {
   sculpt: number
   /** Shown on the threaded map (emoji). */
   icon: string
-  /** Placement on the abstract thread canvas (0–100 → % left / % top). */
+  /** Plate-relative placement (0–100 = left→right / top→bottom % of the route frosted rect). */
   thread: [number, number]
 }
 
