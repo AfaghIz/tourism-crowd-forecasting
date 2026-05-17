@@ -1,0 +1,4 @@
+Rank,Model,Model family,RMSE test,MAE test,R2 test,Train rows,Test rows,Split
+1,Random Forest,Bagged decision trees,1.1927,0.9933,0.315,127,32,random_labeled_train_test_split
+2,XGBoost,Gradient-boosted trees,1.3421,1.1154,0.133,127,32,random_labeled_train_test_split
+3,Manual baseline,Rule-based fallback,4.6468,3.9080,-9.398,127,32,random_labeled_train_test_split

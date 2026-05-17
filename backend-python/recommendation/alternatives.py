@@ -152,15 +152,20 @@ def _candidate_passes_compatibility(
     intent = _anchor_intent(anchor_row)
 
     if intent == "iconic_hybrid_landmark":
-        if not _has_family(row, "family_iconic_landmark"):
-            return False
         religious_overlap = (
             (_has_subtype(anchor_row, "is_mosque") and _has_subtype(row, "is_mosque"))
             or (_has_subtype(anchor_row, "is_church") and _has_subtype(row, "is_church"))
             or (_has_subtype(anchor_row, "is_synagogue") and _has_subtype(row, "is_synagogue"))
             or (_has_subtype(anchor_row, "is_cathedral") and _has_subtype(row, "is_cathedral"))
         )
-        return religious_overlap or family_overlap_count >= 3 or overlap_count >= 2
+        strong_hybrid_match = (
+            _has_family(row, "family_religious_monumental")
+            and _has_family(row, "family_museum_cultural")
+            and overlap_count >= 2
+        )
+        if _has_family(row, "family_iconic_landmark"):
+            return religious_overlap or family_overlap_count >= 3 or overlap_count >= 2
+        return religious_overlap and strong_hybrid_match
 
     if intent == "scenic_iconic_landmark":
         is_direct_scenic_structure = _has_subtype(row, "is_tower") or _has_subtype(row, "is_bridge")

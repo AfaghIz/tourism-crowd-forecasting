@@ -34,8 +34,19 @@ export type ForecastResponse = {
   trend: string
   /** city_wide = notebook weekly index for whole Istanbul; demo = CSV missing */
   forecastScope?: string
+  scoreScope?: string
+  scoreLabel?: string
+  cityScore?: number
+  cityLevel?: 'Low' | 'Medium' | 'High'
   basisWeekStart?: string
+  basisLabel?: string
   interpretation?: string
+}
+
+export type ForecastPeriodOption = {
+  id: string
+  label: string
+  level: 'Low' | 'Medium' | 'High'
 }
 
 const API_BASE =
@@ -79,6 +90,14 @@ export async function searchPois(query: string, limit = 7): Promise<Poi[]> {
   return await getJson<Poi[]>('/api/pois/search', { q: query, limit })
 }
 
+export async function listPois(limit = 60): Promise<Poi[]> {
+  return await getJson<Poi[]>('/api/pois', { limit })
+}
+
+export async function listForecastPeriods(): Promise<ForecastPeriodOption[]> {
+  return await getJson<ForecastPeriodOption[]>('/api/forecast-periods')
+}
+
 export async function searchEverything(query: string, limit = 10): Promise<SearchResult[]> {
   const raw = await getJson<any[]>('/api/search', { q: query, limit })
   // Backend returns {kind, hotel? poi?}; map to the frontend union exactly.
@@ -87,8 +106,12 @@ export async function searchEverything(query: string, limit = 10): Promise<Searc
   )
 }
 
-export async function forecast(selection: { kind: SelectionKind; label: string; latlng: LatLng }, horizonWeeks = 4) {
-  return await postJson<ForecastResponse>('/api/forecast', { ...selection, horizonWeeks })
+export async function forecast(
+  selection: { kind: SelectionKind; label: string; latlng: LatLng; entityId?: string },
+  horizonWeeks = 4,
+  basisWeekStart?: string
+) {
+  return await postJson<ForecastResponse>('/api/forecast', { ...selection, horizonWeeks, basisWeekStart })
 }
 
 /** One ranked POI row from the pandas pipeline (explanation engine output). */

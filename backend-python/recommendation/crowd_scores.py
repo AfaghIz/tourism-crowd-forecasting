@@ -118,9 +118,16 @@ class WorkflowCrowdScoreProvider:
     """
     Crowd score provider backed by the notebook-generated POI-time crowdedness table.
 
-    It normalizes ``crowdindex_poi`` within each date to produce a monotonic busyness
-    score in ``[0, 1]`` and exposes the matching citywide demand score for demand-aware
-    reranking in the recommendation layer.
+    The raw workflow matrix already contains the full ``D(t) * A(p)`` interaction, so
+    using only a per-date normalization flattens away most of the temporal movement.
+    We therefore blend:
+
+    - a global absolute normalization of ``crowdindex_poi``
+    - a within-date relative ranking term
+    - a city-demand term
+
+    This keeps POIs comparable within a week while still letting low-, medium-, and
+    high-demand modeled periods produce visibly different crowd scores.
     """
 
     def __init__(self, csv_path: str | Path) -> None:
@@ -138,9 +145,25 @@ class WorkflowCrowdScoreProvider:
 
         work = df.copy()
         work["date_key"] = work["date"].dt.strftime("%Y-%m-%d")
-        max_per_date = work.groupby("date_key")["crowdindex_poi"].transform("max")
+        global_min = float(work["crowdindex_poi"].min())
+        global_max = float(work["crowdindex_poi"].max())
+        global_range = max(global_max - global_min, 1e-9)
+        max_per_date = work.groupby("date_key")["crowdindex_poi"].transform("max").replace(0.0, 1.0)
+        city_demand_max = max(float(work["city_demand_score"].max()), 1e-9)
+
+        work["crowd_pressure_absolute"] = (
+            (work["crowdindex_poi"] - global_min) / global_range
+        ).clip(lower=0.0, upper=1.0)
+        work["crowd_pressure_relative"] = (
+            work["crowdindex_poi"] / max_per_date
+        ).clip(lower=0.0, upper=1.0)
+        work["city_demand_norm"] = (
+            work["city_demand_score"] / city_demand_max
+        ).clip(lower=0.0, upper=1.0)
         work["crowd_pressure_norm"] = (
-            work["crowdindex_poi"] / max_per_date.replace(0.0, 1.0)
+            0.60 * work["crowd_pressure_absolute"]
+            + 0.25 * work["crowd_pressure_relative"]
+            + 0.15 * work["city_demand_norm"]
         ).clip(lower=0.0, upper=1.0)
 
         self._dates = pd.to_datetime(sorted(work["date"].dropna().unique()))
@@ -159,9 +182,12 @@ class WorkflowCrowdScoreProvider:
     def _resolve_timestamp(self, timestamp: datetime | None) -> datetime:
         if timestamp is None:
             return self._latest_date
-        ts = pd.Timestamp(timestamp).to_pydatetime()
+        ts = pd.Timestamp(timestamp)
+        if ts.tzinfo is not None:
+            ts = ts.tz_convert("UTC").tz_localize(None)
+        ts_py = ts.to_pydatetime()
         nearest_idx = int(
-            (abs(self._dates - pd.Timestamp(ts))).argmin()
+            (abs(self._dates - pd.Timestamp(ts_py))).argmin()
         )
         return self._dates[nearest_idx].to_pydatetime()
 

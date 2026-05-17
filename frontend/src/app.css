@@ -403,7 +403,7 @@ body {
 
 .filterGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   margin-top: 12px;
 }
@@ -798,6 +798,11 @@ body {
   background: rgba(251, 113, 133, 0.1);
 }
 
+.crowdedWarn.isCalm {
+  border-color: rgba(46, 230, 214, 0.3);
+  background: rgba(46, 230, 214, 0.08);
+}
+
 .crowdedWarn strong {
   display: block;
   font-size: 13px;
@@ -828,12 +833,19 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 210px;
+  overflow-y: auto;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
 }
 
 .altPoiBtn {
   appearance: none;
   text-align: left;
   width: 100%;
+  max-width: 100%;
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.22);
   color: rgba(255, 255, 255, 0.92);
@@ -862,6 +874,14 @@ body {
   margin-top: 2px;
   font-size: 11px;
   color: var(--muted2);
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.altPoiExplanation {
+  margin-top: 6px;
 }
 
 .altEmpty {

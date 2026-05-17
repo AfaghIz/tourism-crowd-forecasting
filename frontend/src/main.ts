@@ -3,9 +3,12 @@ import 'leaflet/dist/leaflet.css'
 
 import { createMap } from './map/mapController'
 import {
+  listPois,
+  listForecastPeriods,
   searchEverything,
   fetchRecommendations,
   type Poi,
+  type ForecastPeriodOption,
   type RankedRecommendation,
   type SearchResult,
   forecast
@@ -34,9 +37,9 @@ function areaTrafficLevel(crowdScore: number): 'Low' | 'Medium' | 'High' {
 }
 
 function bestTimeHint(crowdLevel: string): string {
-  if (crowdLevel === 'High') return 'Early morning (before 9:00) or late weekday afternoons tend to be calmer.'
-  if (crowdLevel === 'Medium') return 'Midday is usually busier; late morning or early evening are softer windows.'
-  return 'Most times look comfortable; still avoid major holidays if you prefer quiet.'
+  if (crowdLevel === 'High') return 'Try an earlier or later visit if you want a calmer stop.'
+  if (crowdLevel === 'Medium') return 'A little planning helps here; quieter hours are usually easier.'
+  return 'This stop looks manageable for most visits.'
 }
 
 const root = document.querySelector<HTMLDivElement>('#app')
@@ -51,7 +54,7 @@ root.innerHTML = `
           <div class="brandText">
             <h1>Istanbul Crowd Compass</h1>
             <p class="brandTagline">
-              Pick a place on the map, see crowd context for your window, then open directions in Google Maps.
+              Pick a landmark, get a quick crowd read, and decide whether to stay with it or switch to a nearby alternative.
             </p>
           </div>
         </div>
@@ -61,26 +64,6 @@ root.innerHTML = `
           <span>Flask API (localhost:8080)</span>
         </div>
       </div>
-    </div>
-
-    <div class="heroStatsOuter" role="region" aria-label="Product highlights">
-    <section class="heroStats">
-      <article class="statCard">
-        <div class="statLabel">Coverage</div>
-        <div class="statValue">260 Weeks</div>
-        <div class="statMeta">Historical demand-weather timeline</div>
-      </article>
-      <article class="statCard">
-        <div class="statLabel">Baseline Model</div>
-        <div class="statValue">R2 0.9813</div>
-        <div class="statMeta">Random Forest benchmark</div>
-      </article>
-      <article class="statCard">
-        <div class="statLabel">Experience</div>
-        <div class="statValue">Live Map + Search</div>
-        <div class="statMeta">Matches WEBSITE_UX_FLOW target journey</div>
-      </article>
-    </section>
     </div>
 
     <div class="layout">
@@ -113,13 +96,11 @@ root.innerHTML = `
               </div>
               <div>
                 <div class="fieldLabel">
-                  <span>When</span>
-                  <span class="hint">forecast window</span>
+                  <span>Modeled period</span>
+                  <span class="hint">demo control</span>
                 </div>
-                <select id="filterWhen" class="select" aria-label="Planning time horizon">
-                  <option value="4">Next ~4 weeks (default)</option>
-                  <option value="2">Closer window (~2 weeks)</option>
-                  <option value="8">Longer view (~8 weeks)</option>
+                <select id="forecastPeriod" class="select" aria-label="Choose modeled forecast period">
+                  <option value="">Latest modeled week</option>
                 </select>
               </div>
             </div>
@@ -196,16 +177,15 @@ root.innerHTML = `
           <div class="sheetSwipeStrip" id="sheetSwipeStrip">
             <div class="forecastHeader">
               <p id="detailScreenLabel">POI / place detail</p>
-              <span>forecast</span>
             </div>
             <div class="forecastTitle" id="forecastTitleText">Select a place on the map or via search</div>
             <div class="forecastLevelRow">
               <div>
-                <div class="forecastLabel" id="forecastCrowdLabel">Crowd signal</div>
+                <div class="forecastLabel" id="forecastCrowdLabel">Expected crowd</div>
                 <div class="forecastLevel" id="forecastLevelText">—</div>
               </div>
               <div>
-                <div class="forecastLabel">Crowd index</div>
+                <div class="forecastLabel">Crowd level</div>
                 <div class="forecastScore"><span id="forecastScoreText">—</span><small>/100</small></div>
               </div>
             </div>
@@ -214,26 +194,22 @@ root.innerHTML = `
             <p class="forecastInterpret" id="forecastInterpretation"></p>
             <div class="detailExtra">
               <div class="miniRow">
-                <span class="miniLabel">Area traffic</span>
+                <span class="miniLabel">City activity</span>
                 <span class="miniValue" id="areaTrafficText">—</span>
               </div>
               <div class="miniRow">
-                <span class="miniLabel">Best time</span>
+                <span class="miniLabel">Visit note</span>
                 <span class="miniHint" id="bestTimeText">—</span>
               </div>
             </div>
-            <div class="trendLine">
-              <span>Trend</span>
-              <div id="forecastTrendText">Awaiting selection…</div>
-            </div>
             <div id="crowdedWarning" class="crowdedWarn" hidden>
-              <strong id="crowdedWarnTitle">Busy right now</strong>
+              <strong id="crowdedWarnTitle">Crowd update</strong>
               <p id="crowdedWarnBody">
-                This selection looks crowded for your chosen window. Consider an alternative below.
+                We’ll tell you whether this place looks manageable or whether it’s worth switching nearby.
               </p>
             </div>
             <div id="alternativesBlock" class="altBlock" hidden>
-              <div class="altTitle" id="alternativesTitle">Alternatives nearby</div>
+              <div class="altTitle" id="alternativesTitle">Nearby alternatives</div>
               <div id="alternativesList" class="altList" role="list"></div>
             </div>
           </div>
@@ -243,17 +219,6 @@ root.innerHTML = `
             </button>
           </div>
         </div>
-        <div class="mapHUD">
-          <div class="hudTitle">On-map selection</div>
-          <div class="hudRow">
-            <span>Type</span>
-            <span id="hudKindText">—</span>
-          </div>
-          <div class="hudRow">
-            <span>Coordinates</span>
-            <span id="hudCoordText">—</span>
-          </div>
-        </div>
       </section>
 
       <div class="mobileNavBar" aria-label="Navigation">
@@ -261,29 +226,6 @@ root.innerHTML = `
           Open in Google Maps
         </button>
       </div>
-    </div>
-
-    <section class="insightGrid">
-      <article class="insightCard">
-        <h3>How it decides</h3>
-        <p>
-          Weekly Istanbul pressure from the notebook pipeline (trends, weather, seasonality, holidays). The same
-          city-wide index is shown for every pin until per-venue data exists.
-        </p>
-      </article>
-      <article class="insightCard">
-        <h3>What this UI proves</h3>
-        <p>Landmark search, map interactions, and crowd-aware alternative suggestions are all wired into one product flow.</p>
-      </article>
-      <article class="insightCard">
-        <h3>Navigation handoff</h3>
-        <p>After you confirm a place, Google Maps opens for real-world directions—the last step in the target UX flow.</p>
-      </article>
-    </section>
-
-    <div class="footerNote">
-      Forecast uses the bundled weekly model CSV when the Flask API runs with data files; scope is city-wide, not
-      measured footfall at each venue.
     </div>
   </div>
 `
@@ -322,9 +264,22 @@ function kindLabel(kind: SelectionKind): string {
 }
 
 function getHorizonWeeks(): number {
-  const node = document.getElementById('filterWhen') as HTMLSelectElement | null
-  const n = Number(node?.value)
-  return n >= 1 && n <= 52 ? n : 4
+  return 4
+}
+
+function getSelectedForecastPeriod(): string | undefined {
+  const node = document.getElementById('forecastPeriod') as HTMLSelectElement | null
+  const value = node?.value?.trim() ?? ''
+  return value || undefined
+}
+
+function getEffectiveForecastPeriodStart(): string | undefined {
+  return getSelectedForecastPeriod() || forecastPeriods[0]?.id
+}
+
+function getModeledTimestampIso(): string {
+  const basis = getEffectiveForecastPeriodStart()
+  return basis ? `${basis}T12:00:00` : new Date().toISOString()
 }
 
 function getCategoryFilter(): string {
@@ -360,44 +315,51 @@ async function fillAlternativesIfCrowded(sel: AppSelection, crowdLevel: string, 
 
   const showRecommendations = sel.kind === 'location'
   const showAnchorAlternatives = sel.kind === 'poi' && typeof sel.entityId === 'string'
-  const forceAlternatives = showRecommendations || showAnchorAlternatives
+  const isHighCrowd = crowdLevel === 'High'
+  const isMediumCrowd = crowdLevel === 'Medium'
+  const shouldOfferAlternatives = isHighCrowd || isMediumCrowd
 
-  warn.hidden = crowdLevel !== 'High'
-  block.hidden = !(crowdLevel === 'High' || forceAlternatives)
+  warn.classList.remove('isCalm')
   list.innerHTML = ''
-  if (showRecommendations) {
-    altTitle.textContent = 'Recommended nearby'
-    warnTitle.textContent = 'Busy right now'
-    warnBody.textContent =
-      'This selection looks crowded for your chosen window. Consider an alternative below.'
-    warn.hidden = crowdLevel !== 'High'
+  if (showRecommendations && shouldOfferAlternatives) {
+    warn.hidden = false
+    block.hidden = false
+    altTitle.textContent = 'Places nearby'
+    warnTitle.textContent = isHighCrowd ? 'Busy right now' : 'Calmer options nearby'
+    warnBody.textContent = isHighCrowd
+      ? 'This area looks busy enough that a nearby switch may help.'
+      : 'This area looks manageable, but these nearby options may feel a bit calmer.'
+  } else if (showRecommendations) {
+    warn.hidden = true
+    block.hidden = true
+    return
+  } else if (showAnchorAlternatives && shouldOfferAlternatives) {
+    warn.hidden = false
+    block.hidden = false
+    altTitle.textContent = `Nearby alternatives to ${sel.label}`
+    warnTitle.textContent = isHighCrowd ? 'Try a nearby alternative' : 'Calmer alternatives if you want them'
+    warnBody.textContent = isHighCrowd
+      ? 'This landmark looks busy. The list below favors nearby options that keep a similar feel with less pressure.'
+      : 'This landmark looks manageable, but the list below highlights nearby options with a similar feel and lower pressure.'
   } else if (showAnchorAlternatives) {
-    altTitle.textContent =
-      crowdLevel === 'High' ? `Less crowded alternatives to ${sel.label}` : `Alternatives to ${sel.label}`
-    warnTitle.textContent = 'Try a nearby alternative'
+    warn.hidden = false
+    block.hidden = true
+    warn.classList.add('isCalm')
+    warnTitle.textContent = 'You are good to go'
     warnBody.textContent =
-      crowdLevel === 'High'
-        ? 'This landmark looks busy for your chosen window. The list below favors nearby alternatives with lower crowd pressure.'
-        : 'These nearby alternatives preserve the feel of the selected place while giving you a few calmer options to consider.'
-    warn.hidden = crowdLevel !== 'High'
-  } else if (!showRecommendations && crowdLevel !== 'High') {
-    warnTitle.textContent = 'Busy right now'
-    warnBody.textContent =
-      'This selection looks crowded for your chosen window. Consider an alternative below.'
-    altTitle.textContent = 'Alternatives nearby'
+      'This landmark looks relatively calm right now, so there is no strong reason to switch away from it.'
+    return
+  } else {
+    warn.hidden = true
+    block.hidden = true
     return
   }
 
   if (!showRecommendations && forecastScope === 'city_wide') {
-    warnTitle.textContent = 'High city-wide pressure this week'
-    warnBody.textContent =
-      'The model estimates pressure for Istanbul as a whole—not a live queue at this pin. Nearby places are for exploration; they are not ranked as “quieter” from venue counts.'
-    altTitle.textContent = 'Other places nearby'
-  } else if (!showRecommendations) {
-    warnTitle.textContent = 'High (demo scoring)'
-    warnBody.textContent =
-      'Demo mode uses a placeholder score. Bundle the weekly CSV in the API for a real city-wide index.'
-    altTitle.textContent = 'Alternatives nearby'
+    warnTitle.textContent = isHighCrowd ? 'Try a nearby alternative' : 'Calmer alternatives if you want them'
+    warnBody.textContent = isHighCrowd
+      ? 'This landmark looks busy enough that a nearby switch may give you a more comfortable visit.'
+      : 'This landmark does not look overloaded, but these nearby alternatives may offer a calmer visit.'
   }
 
   const cat = getCategoryFilter()
@@ -405,9 +367,9 @@ async function fillAlternativesIfCrowded(sel: AppSelection, crowdLevel: string, 
   try {
     const data = await fetchRecommendations({
       origin: sel.latlng,
-      timestamp: new Date().toISOString(),
+      timestamp: getModeledTimestampIso(),
       radiusKm: showRecommendations ? 10 : showAnchorAlternatives ? 6 : 25,
-      topK: showRecommendations || showAnchorAlternatives ? 6 : 4,
+      topK: showRecommendations ? 4 : showAnchorAlternatives ? 3 : 4,
       includeItinerary: false,
       ...(showAnchorAlternatives
         ? { anchorPoiId: sel.entityId, anchorRadiusKm: 3 }
@@ -417,10 +379,9 @@ async function fillAlternativesIfCrowded(sel: AppSelection, crowdLevel: string, 
     })
     const recs = data.recommendations
     if (recs.length === 0) {
-      list.innerHTML =
-        showAnchorAlternatives
-          ? '<p class="altEmpty">No strong alternatives were found for this POI within the current radius.</p>'
-          : '<p class="altEmpty">No ranked POIs for this pin—try another category or widen the map.</p>'
+      list.innerHTML = showAnchorAlternatives
+        ? '<p class="altEmpty">No strong nearby alternative stood out for this landmark.</p>'
+        : '<p class="altEmpty">No strong nearby places stood out for this area.</p>'
       return
     }
     for (const rec of recs) {
@@ -446,9 +407,23 @@ async function fillAlternativesIfCrowded(sel: AppSelection, crowdLevel: string, 
       b.className = 'altPoiBtn'
       b.setAttribute('role', 'listitem')
       const metaBits = [metaCat, distLabel, crowd ? `crowd ${crowd}` : ''].filter(Boolean)
-      b.innerHTML = `<span class="altPoiName">${name}</span><span class="altPoiMeta">${metaBits.join(' · ')}</span>${
-        explanation.trim() ? `<span class="altPoiMeta">${explanation}</span>` : ''
-      }`
+      const nameEl = document.createElement('span')
+      nameEl.className = 'altPoiName'
+      nameEl.textContent = name
+
+      const metaEl = document.createElement('span')
+      metaEl.className = 'altPoiMeta'
+      metaEl.textContent = metaBits.join(' · ')
+
+      b.appendChild(nameEl)
+      b.appendChild(metaEl)
+
+      if (explanation.trim()) {
+        const explanationEl = document.createElement('span')
+        explanationEl.className = 'altPoiMeta altPoiExplanation'
+        explanationEl.textContent = explanation
+        b.appendChild(explanationEl)
+      }
       const ll = pickLatLngFromRankedRec(rec)
       const poiId = pickPoiIdFromRankedRec(rec)
       if (ll) {
@@ -462,8 +437,7 @@ async function fillAlternativesIfCrowded(sel: AppSelection, crowdLevel: string, 
       list.appendChild(b)
     }
   } catch {
-    list.innerHTML =
-      '<p class="altEmpty">Recommendations unavailable—start the Flask API on port 8080.</p>'
+    list.innerHTML = '<p class="altEmpty">Nearby alternatives are unavailable right now.</p>'
   }
 }
 
@@ -472,12 +446,9 @@ function setChip(selection: AppSelection | null) {
   const kindText = el<HTMLSpanElement>('selectionKindText')
   const labelText = el<HTMLDivElement>('selectionLabelText')
   const coordsText = el<HTMLSpanElement>('selectionCoordsText')
-  const hudKind = el<HTMLSpanElement>('hudKindText')
-  const hudCoord = el<HTMLSpanElement>('hudCoordText')
   const forecastTitle = el<HTMLDivElement>('forecastTitleText')
   const forecastLevel = el<HTMLDivElement>('forecastLevelText')
   const forecastScore = el<HTMLSpanElement>('forecastScoreText')
-  const forecastTrend = el<HTMLDivElement>('forecastTrendText')
   const areaTrafficText = el<HTMLSpanElement>('areaTrafficText')
   const bestTimeText = el<HTMLSpanElement>('bestTimeText')
   const detailScreenLabel = el<HTMLParagraphElement>('detailScreenLabel')
@@ -488,28 +459,28 @@ function setChip(selection: AppSelection | null) {
   const openMapsBtnMobile = document.getElementById('openMapsBtnMobile') as HTMLButtonElement | null
   const forecastInterpretation = el<HTMLParagraphElement>('forecastInterpretation')
   const forecastCrowdLabel = el<HTMLDivElement>('forecastCrowdLabel')
+  const locationStatus = el<HTMLDivElement>('locationStatus')
 
   if (!selection) {
     dot.style.background = 'transparent'
     kindText.textContent = '—'
     labelText.textContent = 'Search for a landmark or tap the map'
     coordsText.textContent = '—'
-    hudKind.textContent = '—'
-    hudCoord.textContent = '—'
     forecastTitle.textContent = 'Select a place on the map or via search'
     forecastInterpretation.textContent = ''
-    forecastCrowdLabel.textContent = 'Crowd signal'
+    forecastCrowdLabel.textContent = 'Expected crowd'
     forecastLevel.textContent = '—'
     forecastScore.textContent = '—'
-    forecastTrend.textContent = 'Awaiting selection…'
     areaTrafficText.textContent = '—'
     bestTimeText.textContent = '—'
     detailScreenLabel.textContent = 'POI / place detail'
+    crowdedWarning.classList.remove('isCalm')
     crowdedWarning.hidden = true
     alternativesBlock.hidden = true
     alternativesList.innerHTML = ''
     openMapsBtn.disabled = true
     if (openMapsBtnMobile) openMapsBtnMobile.disabled = true
+    locationStatus.textContent = ''
     return
   }
 
@@ -520,54 +491,60 @@ function setChip(selection: AppSelection | null) {
   kindText.textContent = kindLabel(selection.kind)
   labelText.textContent = selection.label
   coordsText.textContent = formatCoord(selection.latlng)
-  hudKind.textContent = kindLabel(selection.kind)
-  hudCoord.textContent = formatCoord(selection.latlng)
   forecastTitle.textContent = selection.label
   forecastLevel.textContent = '…'
   forecastScore.textContent = '…'
-  forecastTrend.textContent = 'Fetching forecast from API…'
   areaTrafficText.textContent = '…'
   bestTimeText.textContent = '…'
   forecastInterpretation.textContent = ''
+  crowdedWarning.classList.remove('isCalm')
   crowdedWarning.hidden = true
   alternativesBlock.hidden = true
   alternativesList.innerHTML = ''
 
   const horizon = getHorizonWeeks()
-  forecast({ kind: selection.kind, label: selection.label, latlng: selection.latlng }, horizon)
+  const basisWeekStart = getSelectedForecastPeriod()
+  forecast(
+    {
+      kind: selection.kind,
+      label: selection.label,
+      latlng: selection.latlng,
+      entityId: selection.entityId
+    },
+    horizon,
+    basisWeekStart
+  )
     .then((res) => {
       if (!currentSelection) return
       if (currentSelection.label !== selection.label || currentSelection.kind !== selection.kind) return
       forecastLevel.textContent = res.level
       forecastScore.textContent = String(res.score)
-      forecastTrend.textContent = res.trend
       const scope = res.forecastScope ?? 'demo'
-      let interp = res.interpretation?.trim() ?? ''
-      if (res.basisWeekStart) {
-        interp = interp ? `${interp} Data week: ${res.basisWeekStart}.` : `Data week: ${res.basisWeekStart}.`
-      }
-      forecastInterpretation.textContent = interp
-
-      if (scope === 'city_wide') {
-        forecastCrowdLabel.textContent = 'City this week'
-        areaTrafficText.textContent = `${res.level} (city-wide, not road API)`
-      } else {
-        forecastCrowdLabel.textContent = 'Demo score'
-        areaTrafficText.textContent = areaTrafficLevel(res.score)
-      }
+      const cityLevel = res.cityLevel ?? res.level
+      const cityScore = res.cityScore ?? res.score
+      const basisLabel = res.basisLabel?.trim()
+      const interpretation = res.interpretation?.trim() ?? ''
+      forecastInterpretation.textContent =
+        basisLabel && interpretation ? `${basisLabel}. ${interpretation}` : basisLabel || interpretation
+      forecastCrowdLabel.textContent = res.scoreLabel?.trim() || 'Expected crowd'
+      areaTrafficText.textContent =
+        scope === 'city_wide' ? `${cityLevel} across the city · ${cityScore}/100` : areaTrafficLevel(cityScore)
       bestTimeText.textContent = bestTimeHint(res.level)
+      locationStatus.textContent = basisLabel
+        ? `Using ${basisLabel.toLowerCase()} for the crowd view.`
+        : ''
       void fillAlternativesIfCrowded(selection, res.level, scope)
     })
     .catch(() => {
       forecastLevel.textContent = '—'
       forecastScore.textContent = '—'
-      forecastTrend.textContent = 'Backend not reachable (start Flask API on :8080)'
       areaTrafficText.textContent = '—'
       bestTimeText.textContent = '—'
-      forecastInterpretation.textContent = ''
+      forecastInterpretation.textContent = 'We could not load the current crowd read right now.'
       crowdedWarning.hidden = true
       alternativesBlock.hidden = true
       alternativesList.innerHTML = ''
+      locationStatus.textContent = ''
     })
 }
 
@@ -683,7 +660,7 @@ async function showNearbyMatches(origin: LatLng) {
   try {
     const data = await fetchRecommendations({
       origin,
-      timestamp: new Date().toISOString(),
+      timestamp: getModeledTimestampIso(),
       radiusKm: 5,
       topK: 10,
       includeItinerary: false,
@@ -747,6 +724,8 @@ function makePoiRow(poi: Poi): HTMLElement {
 }
 
 let currentSelection: AppSelection | null = null
+let defaultMapPois: Poi[] = []
+let forecastPeriods: ForecastPeriodOption[] = []
 
 const map = createMap(el<HTMLDivElement>('map'), {
   defaultCenter: DEFAULT_CENTER,
@@ -755,6 +734,39 @@ const map = createMap(el<HTMLDivElement>('map'), {
     setChip(currentSelection)
   }
 })
+
+function filteredMapPois(): Poi[] {
+  const cat = getCategoryFilter()
+  const visible = cat ? defaultMapPois.filter((poi) => poi.category === cat) : defaultMapPois
+  return visible.slice(0, 80)
+}
+
+function renderDefaultPoiMarkers() {
+  const pois = filteredMapPois()
+  map.setPoiMarkers(
+    pois.map((poi) => ({
+      id: poi.id,
+      name: poi.name,
+      category: poi.category,
+      lat: poi.lat,
+      lng: poi.lng
+    })),
+    (poiId) => {
+      const poi = defaultMapPois.find((item) => item.id === poiId)
+      if (poi) selectPoi(poi)
+    }
+  )
+}
+
+async function loadDefaultPoiMarkers() {
+  try {
+    defaultMapPois = await listPois(80)
+    renderDefaultPoiMarkers()
+  } catch {
+    defaultMapPois = []
+    renderDefaultPoiMarkers()
+  }
+}
 
 function selectPoi(poi: Poi) {
   currentSelection = {
@@ -823,7 +835,7 @@ globalSearchInput.addEventListener('focus', () => {
 const locationStatus = el<HTMLDivElement>('locationStatus')
 const useMyLocationBtn = el<HTMLButtonElement>('useMyLocationBtn')
 const filterCategory = el<HTMLSelectElement>('filterCategory')
-const filterWhen = el<HTMLSelectElement>('filterWhen')
+const forecastPeriod = el<HTMLSelectElement>('forecastPeriod')
 
 function startGeolocation(statusEl: HTMLElement) {
   statusEl.textContent = ''
@@ -861,11 +873,14 @@ useMyLocationBtn.addEventListener('click', () => startGeolocation(locationStatus
 
 function onFilterChange() {
   debouncedGlobalSearch(globalSearchInput.value)
+  renderDefaultPoiMarkers()
   if (currentSelection) setChip(currentSelection)
 }
 
 filterCategory.addEventListener('change', onFilterChange)
-filterWhen.addEventListener('change', onFilterChange)
+forecastPeriod.addEventListener('change', () => {
+  if (currentSelection) setChip(currentSelection)
+})
 
 function wireOpenMapsButton(btn: HTMLButtonElement) {
   btn.addEventListener('click', () => {
@@ -979,7 +994,34 @@ function initForecastSheetCollapse() {
   sync()
 }
 
+function renderForecastPeriods() {
+  forecastPeriod.innerHTML = ''
+
+  const latestOption = document.createElement('option')
+  latestOption.value = ''
+  latestOption.textContent = 'Latest modeled week'
+  forecastPeriod.appendChild(latestOption)
+
+  for (const option of forecastPeriods) {
+    const node = document.createElement('option')
+    node.value = option.id
+    node.textContent = `${option.label} · ${option.level}`
+    forecastPeriod.appendChild(node)
+  }
+}
+
+async function loadForecastPeriods() {
+  try {
+    forecastPeriods = await listForecastPeriods()
+  } catch {
+    forecastPeriods = []
+  }
+  renderForecastPeriods()
+}
+
 initForecastSheetCollapse()
+void loadForecastPeriods()
+void loadDefaultPoiMarkers()
 
 // Ask for location permission right away (for “open app → GPS → recommendations” flow).
 // If denied, the user can still search or tap the map.

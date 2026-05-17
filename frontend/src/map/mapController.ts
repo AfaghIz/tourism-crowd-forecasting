@@ -3,6 +3,10 @@ import type { LatLng, MapSelection, SelectionKind } from '../domain/types'
 
 export type MapController = {
   setMarker: (selection: MapSelection, options?: { flyTo?: boolean }) => void
+  setPoiMarkers: (
+    pois: Array<{ id: string; name: string; category: string; lat: number; lng: number }>,
+    onSelectPoi: (poiId: string) => void
+  ) => void
   getCenter: () => LatLng
   destroy: () => void
 }
@@ -48,6 +52,16 @@ function markerIconFor(kind: SelectionKind): L.Icon {
   })
 }
 
+function poiCircleStyle() {
+  return {
+    radius: 7.5,
+    color: 'rgba(255, 226, 190, 0.96)',
+    weight: 1.5,
+    fillColor: '#d96c5f',
+    fillOpacity: 0.9
+  } satisfies L.CircleMarkerOptions
+}
+
 export function createMap(
   container: HTMLElement,
   opts: {
@@ -90,6 +104,7 @@ export function createMap(
     .addTo(map)
 
   let marker: L.Marker | null = null
+  const poiLayer = L.layerGroup().addTo(map)
 
   const setMarkerInternal = (selection: MapSelection, options?: { flyTo?: boolean }) => {
     const icon = markerIconFor(selection.kind)
@@ -125,6 +140,24 @@ export function createMap(
 
   return {
     setMarker: (selection, options) => setMarkerInternal(selection, options),
+    setPoiMarkers: (pois, onSelectPoi) => {
+      poiLayer.clearLayers()
+
+      for (const poi of pois) {
+        const circle = L.circleMarker([poi.lat, poi.lng], poiCircleStyle()).addTo(poiLayer)
+        const popup = `
+          <div style="font-weight:700; letter-spacing:-0.2px">${poi.name}</div>
+          <div style="font-size:12px; opacity:0.78; margin-top:2px">${poi.category}</div>
+        `
+        circle.bindPopup(popup, { closeButton: false })
+        circle.on('mouseover', () => circle.openPopup())
+        circle.on('mouseout', () => circle.closePopup())
+        circle.on('click', (e) => {
+          L.DomEvent.stopPropagation(e)
+          onSelectPoi(poi.id)
+        })
+      }
+    },
     getCenter: () => {
       const c = map.getCenter()
       return { lat: c.lat, lng: c.lng }
@@ -136,4 +169,3 @@ export function createMap(
     }
   }
 }
-

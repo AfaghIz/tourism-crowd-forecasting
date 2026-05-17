@@ -1,0 +1,118 @@
+{
+  "total_cases": 18,
+  "cases_with_recommendations": 18,
+  "coverage_rate": 1.0,
+  "average_recommendation_count": 3.8333333333333335,
+  "high_anchor_cases": 3,
+  "high_anchor_coverage_rate": 1.0,
+  "low_medium_anchor_cases": 15,
+  "raw_low_medium_suppression_rate": 0.0,
+  "average_top_crowd_relief": 0.3212,
+  "median_top_crowd_relief": 0.2975,
+  "average_top_similarity": 0.7958333333333333,
+  "average_top_practicality": 0.8648500000000001,
+  "average_top_distance_to_anchor_km": 0.5068333333333334,
+  "by_period": [
+    {
+      "basis_week_start": "2026-03-08",
+      "basis_label": "Recent low week (2026-03-08)",
+      "basis_level": "Low",
+      "cases": 6,
+      "recommendations": 6,
+      "average_anchor_crowd": 0.4377912393761833,
+      "average_city_demand": 0.3077321052551269,
+      "average_top_crowd_relief": 0.33261666666666667,
+      "coverage_rate": 1.0
+    },
+    {
+      "basis_week_start": "2026-04-19",
+      "basis_label": "Recent medium week (2026-04-19)",
+      "basis_level": "Medium",
+      "cases": 6,
+      "recommendations": 6,
+      "average_anchor_crowd": 0.5409171507236037,
+      "average_city_demand": 0.4251859188079834,
+      "average_top_crowd_relief": 0.3211,
+      "coverage_rate": 1.0
+    },
+    {
+      "basis_week_start": "2026-05-03",
+      "basis_label": "Latest modeled week (2026-05-03)",
+      "basis_level": "High",
+      "cases": 6,
+      "recommendations": 6,
+      "average_anchor_crowd": 0.7018268105546807,
+      "average_city_demand": 0.6084517240524292,
+      "average_top_crowd_relief": 0.30988333333333334,
+      "coverage_rate": 1.0
+    }
+  ],
+  "by_anchor": [
+    {
+      "anchor_name": "Chora Mosque / Kariye Museum",
+      "anchor_category": "museum",
+      "periods_evaluated": 3,
+      "recommendations": 3,
+      "average_anchor_crowd": 0.48902025133494037,
+      "average_top_crowd_relief": 0.25206666666666666,
+      "average_top_similarity": 0.9167,
+      "average_top_distance_to_anchor_km": 0.649,
+      "coverage_rate": 1.0
+    },
+    {
+      "anchor_name": "Galata Tower",
+      "anchor_category": "attraction",
+      "periods_evaluated": 3,
+      "recommendations": 3,
+      "average_anchor_crowd": 0.5793904511570881,
+      "average_top_crowd_relief": 0.3444,
+      "average_top_similarity": 0.875,
+      "average_top_distance_to_anchor_km": 0.737,
+      "coverage_rate": 1.0
+    },
+    {
+      "anchor_name": "Hagia Sophia",
+      "anchor_category": "museum",
+      "periods_evaluated": 3,
+      "recommendations": 3,
+      "average_anchor_crowd": 0.6736094408746713,
+      "average_top_crowd_relief": 0.19853333333333334,
+      "average_top_similarity": 0.9833,
+      "average_top_distance_to_anchor_km": 0.164,
+      "coverage_rate": 1.0
+    },
+    {
+      "anchor_name": "Rumeli Fortress",
+      "anchor_category": "museum",
+      "periods_evaluated": 3,
+      "recommendations": 3,
+      "average_anchor_crowd": 0.5146753565832961,
+      "average_top_crowd_relief": 0.22490000000000002,
+      "average_top_similarity": 0.25,
+      "average_top_distance_to_anchor_km": 0.413,
+      "coverage_rate": 1.0
+    },
+    {
+      "anchor_name": "S\u00fcleymaniye Mosque",
+      "anchor_category": "religious",
+      "periods_evaluated": 3,
+      "recommendations": 3,
+      "average_anchor_crowd": 0.5746144411917543,
+      "average_top_crowd_relief": 0.47013333333333335,
+      "average_top_similarity": 0.875,
+      "average_top_distance_to_anchor_km": 0.678,
+      "coverage_rate": 1.0
+    },
+    {
+      "anchor_name": "The Blue Mosque",
+      "anchor_category": "religious",
+      "periods_evaluated": 3,
+      "recommendations": 3,
+      "average_anchor_crowd": 0.5297604601671849,
+      "average_top_crowd_relief": 0.4371666666666667,
+      "average_top_similarity": 0.875,
+      "average_top_distance_to_anchor_km": 0.4000000000000001,
+      "coverage_rate": 1.0
+    }
+  ]
+}

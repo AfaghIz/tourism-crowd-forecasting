@@ -1,61 +1,64 @@
 model,feature,coefficient,abs_coefficient
-Ordinary Least Squares,(intercept),0.4345346166756579,0.4345346166756579
-Ordinary Least Squares,num__trend_demand,0.08866971112142082,0.08866971112142082
-Ordinary Least Squares,num__temp_avg,0.07500629136624822,0.07500629136624822
-Ordinary Least Squares,num__precipitation,-0.02467824409773139,0.02467824409773139
-Ordinary Least Squares,num__temp_max,1.2431510036704782e-16,1.2431510036704782e-16
-Ordinary Least Squares,cat__season_spring_False,7.182693610874825e-17,7.182693610874825e-17
-Ordinary Least Squares,cat__season_winter_False,5.2656448818467173e-17,5.2656448818467173e-17
-Ordinary Least Squares,cat__season_spring,3.9195366353767395e-17,3.9195366353767395e-17
-Ordinary Least Squares,cat__season_spring_True,2.878702549790655e-17,2.878702549790655e-17
-Ordinary Least Squares,num__month,2.6414614424558792e-17,2.6414614424558792e-17
-Ordinary Least Squares,cat__season_winter_True,2.5406107600489143e-17,2.5406107600489143e-17
-Ordinary Least Squares,cat__season_winter,2.5406107600489143e-17,2.5406107600489143e-17
-Ordinary Least Squares,cat__season_summer_True,1.3236279146715264e-17,1.3236279146715264e-17
-Ordinary Least Squares,cat__season_summer,1.3236279146715264e-17,1.3236279146715264e-17
-Ordinary Least Squares,num__is_holiday,1.307928137594723e-17,1.307928137594723e-17
-Ordinary Least Squares,num__day_of_week,-1.235990476633475e-17,1.235990476633475e-17
-Ordinary Least Squares,cat__season_autumn,1.1825766563579413e-17,1.1825766563579413e-17
-Ordinary Least Squares,cat__season_summer_False,-1.1501555670738457e-17,1.1501555670738457e-17
-Ordinary Least Squares,num__temp_min,5.053472940273485e-18,5.053472940273485e-18
-Ordinary Least Squares,num__week_of_year,-2.330949110259739e-18,2.330949110259739e-18
-Ridge (alpha=1.0),(intercept),0.434542361533484,0.434542361533484
-Ridge (alpha=1.0),num__trend_demand,0.08819467302355967,0.08819467302355967
-Ridge (alpha=1.0),num__temp_avg,0.03216377337258953,0.03216377337258953
-Ridge (alpha=1.0),num__precipitation,-0.024332534277722324,0.024332534277722324
-Ridge (alpha=1.0),num__temp_max,0.023361166763971205,0.023361166763971205
-Ridge (alpha=1.0),num__temp_min,0.018913092220618346,0.018913092220618346
-Ridge (alpha=1.0),cat__season_summer,0.0006336343037432721,0.0006336343037432721
-Ridge (alpha=1.0),cat__season_summer_True,0.000633634303742319,0.000633634303742319
-Ridge (alpha=1.0),cat__season_summer_False,-0.0006336343037423165,0.0006336343037423165
-Ridge (alpha=1.0),cat__season_spring_False,0.0004055638312400147,0.0004055638312400147
-Ridge (alpha=1.0),cat__season_spring_True,-0.00040556383124000885,0.00040556383124000885
-Ridge (alpha=1.0),cat__season_spring,-0.0004055638312394302,0.0004055638312394302
-Ridge (alpha=1.0),cat__season_winter_True,-0.0002125807568514132,0.0002125807568514132
-Ridge (alpha=1.0),cat__season_winter_False,0.00021258075685141116,0.00021258075685141116
-Ridge (alpha=1.0),cat__season_winter,-0.000212580756850748,0.000212580756850748
-Ridge (alpha=1.0),num__is_holiday,0.00020068431428645306,0.00020068431428645306
-Ridge (alpha=1.0),num__month,0.0001376721047174984,0.0001376721047174984
-Ridge (alpha=1.0),cat__season_autumn,-1.548971565509073e-05,1.548971565509073e-05
-Ridge (alpha=1.0),num__week_of_year,-7.761988798285732e-06,7.761988798285732e-06
+Ordinary Least Squares,(intercept),0.3928627556789764,0.3928627556789764
+Ordinary Least Squares,num__temp_avg,0.0757633259636985,0.0757633259636985
+Ordinary Least Squares,num__trend_demand,0.06098398462699109,0.06098398462699109
+Ordinary Least Squares,num__precipitation,-0.02433558262938325,0.02433558262938325
+Ordinary Least Squares,num__temp_max,-9.27993801260623e-17,9.27993801260623e-17
+Ordinary Least Squares,cat__season_spring_True,6.374734206717984e-17,6.374734206717984e-17
+Ordinary Least Squares,cat__season_spring,6.374734206717984e-17,6.374734206717984e-17
+Ordinary Least Squares,cat__season_autumn,5.61478954119416e-17,5.61478954119416e-17
+Ordinary Least Squares,num__weekofyear,5.492402514090984e-17,5.492402514090984e-17
+Ordinary Least Squares,num__week_of_year,-4.568993646574497e-17,4.568993646574497e-17
+Ordinary Least Squares,cat__season_winter_False,3.8437813043510953e-17,3.8437813043510953e-17
+Ordinary Least Squares,cat__season_winter_True,3.5866461378998936e-17,3.5866461378998936e-17
+Ordinary Least Squares,cat__season_winter,3.5866461378998936e-17,3.5866461378998936e-17
+Ordinary Least Squares,cat__season_spring_False,3.3397172587521364e-17,3.3397172587521364e-17
+Ordinary Least Squares,num__temp_min,2.6160919705115046e-17,2.6160919705115046e-17
+Ordinary Least Squares,num__month,-2.5233562461991078e-17,2.5233562461991078e-17
+Ordinary Least Squares,num__is_holiday,-2.1067433006916162e-17,2.1067433006916162e-17
+Ordinary Least Squares,cat__season_summer_True,1.9457085782366454e-17,1.9457085782366454e-17
+Ordinary Least Squares,cat__season_summer,1.9457085782366454e-17,1.9457085782366454e-17
+Ordinary Least Squares,cat__season_summer_False,1.5044827040841143e-17,1.5044827040841143e-17
+Ordinary Least Squares,num__day_of_week,-2.6020852139652106e-18,2.6020852139652106e-18
+Ridge (alpha=1.0),(intercept),0.3929278047893644,0.3929278047893644
+Ridge (alpha=1.0),num__trend_demand,0.06072617354630901,0.06072617354630901
+Ridge (alpha=1.0),num__temp_avg,0.03303672701905572,0.03303672701905572
+Ridge (alpha=1.0),num__precipitation,-0.023987678255160724,0.023987678255160724
+Ridge (alpha=1.0),num__temp_max,0.023360923197273904,0.023360923197273904
+Ridge (alpha=1.0),num__temp_min,0.018838698632607103,0.018838698632607103
+Ridge (alpha=1.0),cat__season_summer,0.0005899898766099534,0.0005899898766099534
+Ridge (alpha=1.0),cat__season_summer_True,0.0005899898766098995,0.0005899898766098995
+Ridge (alpha=1.0),cat__season_summer_False,-0.000589989876608138,0.000589989876608138
+Ridge (alpha=1.0),cat__season_spring,-0.000364563733472068,0.000364563733472068
+Ridge (alpha=1.0),cat__season_spring_True,-0.0003645637334717291,0.0003645637334717291
+Ridge (alpha=1.0),cat__season_spring_False,0.00036456373347137683,0.00036456373347137683
+Ridge (alpha=1.0),cat__season_winter_True,-0.00019334533910370376,0.00019334533910370376
+Ridge (alpha=1.0),cat__season_winter,-0.00019334533910343954,0.00019334533910343954
+Ridge (alpha=1.0),cat__season_winter_False,0.00019334533910280886,0.00019334533910280886
+Ridge (alpha=1.0),num__weekofyear,0.00012292043339920793,0.00012292043339920793
+Ridge (alpha=1.0),num__week_of_year,0.00012292043339920164,0.00012292043339920164
+Ridge (alpha=1.0),num__month,-8.188530788806492e-05,8.188530788806492e-05
+Ridge (alpha=1.0),cat__season_autumn,-3.208080403666631e-05,3.208080403666631e-05
+Ridge (alpha=1.0),num__is_holiday,-3.092641485785027e-05,3.092641485785027e-05
 Ridge (alpha=1.0),num__day_of_week,0.0,0.0
-Lasso (alpha=0.0001),(intercept),0.43453461667565807,0.43453461667565807
-Lasso (alpha=0.0001),num__trend_demand,0.08859960091299492,0.08859960091299492
-Lasso (alpha=0.0001),num__temp_avg,0.07053813031839466,0.07053813031839466
-Lasso (alpha=0.0001),num__precipitation,-0.02457271958651175,0.02457271958651175
-Lasso (alpha=0.0001),num__temp_max,0.002408655684342905,0.002408655684342905
-Lasso (alpha=0.0001),num__temp_min,0.002047049691644027,0.002047049691644027
-Lasso (alpha=0.0001),cat__season_summer_True,0.0,0.0
+Lasso (alpha=0.0001),(intercept),0.3928627556789765,0.3928627556789765
+Lasso (alpha=0.0001),num__temp_avg,0.07223786352308977,0.07223786352308977
+Lasso (alpha=0.0001),num__trend_demand,0.060916947440022344,0.060916947440022344
+Lasso (alpha=0.0001),num__precipitation,-0.024233241851573873,0.024233241851573873
+Lasso (alpha=0.0001),num__temp_max,0.0018887356823874613,0.0018887356823874613
+Lasso (alpha=0.0001),num__temp_min,0.0016167525966634213,0.0016167525966634213
+Lasso (alpha=0.0001),cat__season_summer_False,-0.0,0.0
 Lasso (alpha=0.0001),cat__season_summer,0.0,0.0
 Lasso (alpha=0.0001),cat__season_spring,-0.0,0.0
-Lasso (alpha=0.0001),cat__season_autumn,-0.0,0.0
+Lasso (alpha=0.0001),cat__season_autumn,0.0,0.0
 Lasso (alpha=0.0001),cat__season_winter_True,-0.0,0.0
 Lasso (alpha=0.0001),cat__season_winter_False,0.0,0.0
+Lasso (alpha=0.0001),cat__season_summer_True,0.0,0.0
 Lasso (alpha=0.0001),cat__season_spring_False,0.0,0.0
-Lasso (alpha=0.0001),cat__season_summer_False,-0.0,0.0
 Lasso (alpha=0.0001),cat__season_spring_True,-0.0,0.0
 Lasso (alpha=0.0001),num__day_of_week,0.0,0.0
 Lasso (alpha=0.0001),num__is_holiday,0.0,0.0
+Lasso (alpha=0.0001),num__weekofyear,0.0,0.0
 Lasso (alpha=0.0001),num__week_of_year,0.0,0.0
 Lasso (alpha=0.0001),num__month,0.0,0.0
 Lasso (alpha=0.0001),cat__season_winter,-0.0,0.0

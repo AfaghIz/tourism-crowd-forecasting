@@ -1,0 +1,11 @@
+Rank,Model,Model family,RMSE test,MAE test,R2 test,RMSE (% target range),Split,Part,Train rows,Test rows
+1,OLS,Linear regression,0.0000,0.0000,1.000,0.0%,chronological,Part A,,
+2,Lasso,Regularized linear regression,0.0002,0.0002,1.000,0.0%,chronological,Part A,,
+3,Ridge,Regularized linear regression,0.0016,0.0012,1.000,0.2%,chronological,Part A,,
+4,XGBoost,Gradient-boosted trees,0.0362,0.0207,0.900,5.6%,chronological,Part A,,
+5,Random Forest,Bagged decision trees,0.0599,0.0274,0.726,9.2%,chronological,Part A,,
+6,LSTM,Sequence neural network,0.0668,0.0443,0.659,10.3%,chronological_sequence,Part A,,
+7,LightGBM,Gradient-boosted trees,0.0684,0.0312,0.643,10.5%,chronological,Part A,,
+1,Random Forest,Bagged decision trees,1.1927,0.9933,0.315,,random_labeled_train_test_split,Part B,127,32
+2,XGBoost,Gradient-boosted trees,1.3421,1.1154,0.133,,random_labeled_train_test_split,Part B,127,32
+3,Manual baseline,Rule-based fallback,4.6468,3.9080,-9.398,,random_labeled_train_test_split,Part B,127,32

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="700" viewBox="0 0 1100 700">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="550.0" y="44" text-anchor="middle" font-family="Times New Roman, Times, serif" font-size="28" font-weight="700" fill="#111827">Part B Model Comparison by RMSE</text>
+<text x="550.0" y="72" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#4b5563">Lower values indicate better predictive performance</text>
+<line x1="110" y1="90" x2="110" y2="530" stroke="#1f2937" stroke-width="2"/>
+<line x1="110" y1="530" x2="1060" y2="530" stroke="#1f2937" stroke-width="2"/>
+<line x1="110" y1="530.0" x2="1060" y2="530.0" stroke="#d1d5db" stroke-width="1.2"/>
+<text x="98" y="535.0" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#4b5563">0.00</text>
+<line x1="110" y1="442.0" x2="1060" y2="442.0" stroke="#d1d5db" stroke-width="1.2"/>
+<text x="98" y="447.0" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#4b5563">1.04</text>
+<line x1="110" y1="354.0" x2="1060" y2="354.0" stroke="#d1d5db" stroke-width="1.2"/>
+<text x="98" y="359.0" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#4b5563">2.08</text>
+<line x1="110" y1="266.0" x2="1060" y2="266.0" stroke="#d1d5db" stroke-width="1.2"/>
+<text x="98" y="271.0" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#4b5563">3.12</text>
+<line x1="110" y1="178.0" x2="1060" y2="178.0" stroke="#d1d5db" stroke-width="1.2"/>
+<text x="98" y="183.0" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#4b5563">4.16</text>
+<line x1="110" y1="90.0" x2="1060" y2="90.0" stroke="#d1d5db" stroke-width="1.2"/>
+<text x="98" y="95.0" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#4b5563">5.20</text>
+<text x="28" y="310.0" transform="rotate(-90 28 310.0)" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#1f2937">RMSE</text>
+<rect x="110.0" y="429.1614338480179" width="302.0" height="100.83856615198209" rx="8" fill="#4c78a8"/>
+<text x="261.0" y="419.1614338480179" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" fill="#111827">1.19</text>
+<g transform="translate(261.0,548) rotate(32)"><text text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#1f2937">Random Forest</text></g>
+<rect x="434.0" y="416.5345934091029" width="302.0" height="113.46540659089709" rx="8" fill="#6b7280"/>
+<text x="585.0" y="406.5345934091029" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" fill="#111827">1.34</text>
+<g transform="translate(585.0,548) rotate(32)"><text text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#1f2937">XGBoost</text></g>
+<rect x="758.0" y="137.14285714285717" width="302.0" height="392.85714285714283" rx="8" fill="#8c8c8c"/>
+<text x="909.0" y="127.14285714285717" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" fill="#111827">4.65</text>
+<g transform="translate(909.0,548) rotate(32)"><text text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#1f2937">Manual baseline</text></g>
+</svg>

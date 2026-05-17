@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="760" viewBox="0 0 1180 760">
+<rect width="100%" height="100%" fill="#fbf8f2"/>
+<text x="590" y="42" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="700" fill="#1f2937">Part B Model Comparison by MAE, RMSE, and R²</text>
+<text x="590" y="68" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#6b7280">Errors use the left axis; R² uses the right axis</text>
+<line x1="90" y1="90" x2="90" y2="590" stroke="#374151" stroke-width="2"/>
+<line x1="1060" y1="90" x2="1060" y2="590" stroke="#7c3aed" stroke-width="2"/>
+<line x1="90" y1="590" x2="1060" y2="590" stroke="#374151" stroke-width="2"/>
+<line x1="90" y1="590" x2="1060" y2="590" stroke="#e5e7eb" stroke-width="1.2"/>
+<text x="78" y="595" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#4b5563">0.0</text>
+<line x1="90" y1="490" x2="1060" y2="490" stroke="#e5e7eb" stroke-width="1.2"/>
+<text x="78" y="495" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#4b5563">1.0</text>
+<line x1="90" y1="390" x2="1060" y2="390" stroke="#e5e7eb" stroke-width="1.2"/>
+<text x="78" y="395" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#4b5563">2.1</text>
+<line x1="90" y1="290" x2="1060" y2="290" stroke="#e5e7eb" stroke-width="1.2"/>
+<text x="78" y="295" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#4b5563">3.1</text>
+<line x1="90" y1="190" x2="1060" y2="190" stroke="#e5e7eb" stroke-width="1.2"/>
+<text x="78" y="195" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#4b5563">4.2</text>
+<line x1="90" y1="90" x2="1060" y2="90" stroke="#e5e7eb" stroke-width="1.2"/>
+<text x="78" y="95" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#4b5563">5.2</text>
+<text x="1072" y="595" text-anchor="start" font-family="Arial, sans-serif" font-size="13" fill="#6d28d9">-10.2</text>
+<text x="1072" y="495" text-anchor="start" font-family="Arial, sans-serif" font-size="13" fill="#6d28d9">-8.0</text>
+<text x="1072" y="395" text-anchor="start" font-family="Arial, sans-serif" font-size="13" fill="#6d28d9">-5.9</text>
+<text x="1072" y="295" text-anchor="start" font-family="Arial, sans-serif" font-size="13" fill="#6d28d9">-3.8</text>
+<text x="1072" y="195.00000000000006" text-anchor="start" font-family="Arial, sans-serif" font-size="13" fill="#6d28d9">-1.7</text>
+<text x="1072" y="95" text-anchor="start" font-family="Arial, sans-serif" font-size="13" fill="#6d28d9">0.4</text>
+<text x="28" y="340" transform="rotate(-90 28 340)" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#374151">MAE / RMSE</text>
+<text x="1152" y="340" transform="rotate(90 1152 340)" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#6d28d9">R²</text>
+<rect x="850" y="98" width="18" height="18" rx="3" fill="#2563eb"/>
+<text x="876" y="112" font-family="Arial, sans-serif" font-size="14" fill="#374151">RMSE</text>
+<rect x="950" y="98" width="18" height="18" rx="3" fill="#0f766e"/>
+<text x="976" y="112" font-family="Arial, sans-serif" font-size="14" fill="#374151">MAE</text>
+<rect x="1050" y="98" width="18" height="18" rx="3" fill="#7c3aed"/>
+<text x="1076" y="112" font-family="Arial, sans-serif" font-size="14" fill="#374151">R²</text>
+<rect x="107.70833333333333" y="475.41075214200265" width="70.83333333333333" height="114.58924785799735" rx="7" fill="#2563eb"/>
+<rect x="199.79166666666666" y="494.57081460092024" width="70.83333333333333" height="95.42918539907976" rx="7" fill="#0f766e"/>
+<rect x="291.875" y="91.79900656576012" width="70.83333333333333" height="498.2009934342399" rx="7" fill="#7c3aed"/>
+<text x="143.125" y="465.41075214200265" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#111827">1.19</text>
+<text x="235.20833333333331" y="484.57081460092024" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#111827">0.99</text>
+<text x="327.2916666666667" y="81.79900656576012" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#111827">0.31</text>
+<g transform="translate(231.66666666666666,608) rotate(28)"><text text-anchor="start" font-family="Arial, sans-serif" font-size="14" fill="#374151">Random Forest</text></g>
+<rect x="451.04166666666663" y="461.0619852893638" width="70.83333333333333" height="128.9380147106362" rx="7" fill="#2563eb"/>
+<rect x="543.125" y="482.8425129830429" width="70.83333333333333" height="107.15748701695708" rx="7" fill="#0f766e"/>
+<rect x="635.2083333333333" y="100.47821123308" width="70.83333333333333" height="489.52178876692" rx="7" fill="#7c3aed"/>
+<text x="486.4583333333333" y="451.0619852893638" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#111827">1.34</text>
+<text x="578.5416666666666" y="472.8425129830429" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#111827">1.12</text>
+<text x="670.6249999999999" y="90.47821123308" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#111827">0.13</text>
+<g transform="translate(575,608) rotate(28)"><text text-anchor="start" font-family="Arial, sans-serif" font-size="14" fill="#374151">XGBoost</text></g>
+<rect x="794.375" y="143.57142857142867" width="70.83333333333333" height="446.42857142857133" rx="7" fill="#2563eb"/>
+<rect x="886.4583333333333" y="214.55196923254863" width="70.83333333333333" height="375.44803076745137" rx="7" fill="#0f766e"/>
+<rect x="978.5416666666666" y="554.2067205886735" width="70.83333333333333" height="35.793279411326466" rx="7" fill="#7c3aed"/>
+<text x="829.7916666666666" y="133.57142857142867" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#111827">4.65</text>
+<text x="921.8749999999999" y="204.55196923254863" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#111827">3.91</text>
+<text x="1013.9583333333333" y="570.2067205886735" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#111827">-9.40</text>
+<g transform="translate(918.3333333333333,608) rotate(28)"><text text-anchor="start" font-family="Arial, sans-serif" font-size="14" fill="#374151">Manual baseline</text></g>
+</svg>
