@@ -7,29 +7,162 @@ import {
   listForecastPeriods,
   searchEverything,
   fetchRecommendations,
-  type Poi,
+  placePhotoProxyUrl,
   type ForecastPeriodOption,
+  type Hotel,
+  type Poi,
   type RankedRecommendation,
   type SearchResult,
   forecast
 } from './api/api'
-import type { LatLng, MapSelection, SelectionKind } from './domain/types'
-
-type AppSelection = MapSelection & {
-  entityId?: string
-}
+import type { LatLng, MapSelection } from './domain/types'
+import { rankLocalPoisNear } from './nearby/localRecommendations'
+import { thumbUrlForPoiId } from './api/mockApi'
+import {
+  TRENDING_ISTANBUL,
+  POPULAR_ISTANBUL_TOP10,
+  escapeHtml,
+  recentSearchesAdd,
+  recentSearchesGet,
+  favoriteToggle,
+  favoriteHas,
+  categoryIcon,
+  gradientThumbStyle,
+  recommendationMicroBadges,
+  recommendationWhyLine,
+  crowdDotClass,
+  hotelCardBadges,
+  poiCardBadges,
+  type DiscoveryItem,
+} from './ux/premiumHelpers'
 
 const DEFAULT_CENTER: LatLng = { lat: 41.0082, lng: 28.9784 }
+
+/** Forecast API horizon when no UI control (matches former default “Next ~4 weeks”). */
+const FORECAST_HORIZON_WEEKS = 4
+
+/** YouTube clip ids for the small search-column preview stack (muted autoplay). */
+const VR_CLIPS: readonly { id: string; iframeTitle: string }[] = [
+  {
+    id: 'Ko_pCVbUDJM',
+    iframeTitle: 'Istanbul Bosphorous 360 VR Tour'
+  },
+  {
+    id: 'x7kuv3rd5BY',
+    iframeTitle: 'Istanbul travel video'
+  },
+  {
+    id: 'cvmw60WqJ0k',
+    iframeTitle: 'Istanbul travel video'
+  },
+  {
+    id: '4ZXUSgLRNEU',
+    iframeTitle: 'Istanbul travel video'
+  },
+  {
+    id: 'JzTBLwZq_W0',
+    iframeTitle: 'Istanbul travel video'
+  },
+  {
+    id: 'ElRgievF8_0',
+    iframeTitle: 'Istanbul travel video'
+  }
+]
+
+/** Muted autoplay embeds (YouTube requires mute for autoplay). */
+function sideVideoTilesHtml(clips: readonly { id: string; iframeTitle: string }[]): string {
+  return clips
+    .map((clip) => {
+      const src = `https://www.youtube.com/embed/${encodeURIComponent(clip.id)}?autoplay=1&mute=1&loop=1&playlist=${encodeURIComponent(clip.id)}&playsinline=1&controls=0&modestbranding=1&rel=0`
+      return `<div class="sideVideoTile"><iframe class="sideVideoIframe" src="${src}" title="${escapeHtml(clip.iframeTitle)}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`
+    })
+    .join('')
+}
+
+const SIDE_VIDEO_STACK_HTML = sideVideoTilesHtml(VR_CLIPS.slice(0, 4))
+const SIDE_VIDEO_TRIP_STACK_HTML = sideVideoTilesHtml(VR_CLIPS.slice(4, 6))
 
 const POI_CATEGORIES = [
   'all',
   'Landmark',
   'Museum',
+  'Religious',
+  'Palace',
   'Viewpoint',
-  'Shopping',
-  'Market',
-  'Street'
+  'Heritage'
 ] as const
+
+type PoiCategoryBubble = (typeof POI_CATEGORIES)[number]
+
+/** Distinctive line icons for trip-panel category chips (not generic emoji font). */
+const CATEGORY_BUBBLE_SVG: Record<PoiCategoryBubble, string> = {
+  all: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" aria-hidden="true"><path d="M12 2.5v3.5M12 18v3.5M2.5 12h3.5M18 12h3.5"/><path d="M5.2 5.2l2.5 2.5M16.3 16.3l2.5 2.5M5.2 18.8l2.5-2.5M16.3 7.7l2.5-2.5"/><circle cx="12" cy="12" r="1.75" fill="currentColor" stroke="none"/></svg>`,
+  Landmark: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M5 20V11l7-6 7 6v9M8.5 20v-8M12 20V8.5M15.5 20v-8"/><path d="M12 6.5 9.5 11h5L12 6.5z"/></svg>`,
+  Museum: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="6" width="14" height="12" rx="1.2"/><path d="M8 15.5 11 11l2.5 3 2.5-5 3 6.5"/></svg>`,
+  Religious: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M6.5 20V10.5h11V20"/><path d="M9 10.5V7.8c0-1.7 1.35-3.05 3-3.05s3 1.35 3 3.05v2.7"/><path d="M12 4.75v-2"/><path d="M16.6 8.4h2.2M5.2 8.4h2.2"/></svg>`,
+  Palace: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 20h17"/><path d="M5.5 20V9.5l2.4 1.2L12 6l4.1 4.7 2.4-1.2V20"/><path d="M8 20v-5.5h2.2V20M13.8 20v-5.5H16V20"/><path d="M12 6V3.5"/></svg>`,
+  Viewpoint: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18L12 5.5 3 20z"/><circle cx="17.5" cy="7" r="2.3" fill="currentColor" stroke="none"/></svg>`,
+  Heritage: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M7 20v-6.5c0-2.8 2.2-5 5-5s5 2.2 5 5V20"/><path d="M9 10.5V7.8M12 8.5V5.8M15 10.5V7.8"/><path d="M9 14h6"/></svg>`
+}
+
+const CATEGORY_BUBBLES_HTML = POI_CATEGORIES.map((c) => {
+  const icon = CATEGORY_BUBBLE_SVG[c]
+  const label = c === 'all' ? 'All' : c
+  const isAll = c === 'all'
+  return `<button type="button" class="categoryBubble${isAll ? ' isActive' : ''}" data-category="${c}" aria-pressed="${String(isAll)}" aria-label="Category: ${label}"><span class="categoryBubble__ring" aria-hidden="true"><span class="categoryBubble__ic">${icon}</span></span><span class="categoryBubble__lbl">${label}</span></button>`
+}).join('')
+
+type AppSelection = MapSelection & {
+  entityId?: string
+}
+
+type ExplorerLandmark = {
+  id: string
+  name: string
+  lat: number
+  lng: number
+}
+
+const EXPLORER_POI_NAME_ALIASES: Record<string, readonly string[]> = {
+  hagia: ['Hagia Sophia'],
+  blue: ['The Blue Mosque', 'Blue Mosque'],
+  topkapi: ['Topkapı Palace', 'Topkapi Palace'],
+  bazaar: ['Grand Bazaar'],
+  galata: ['Galata Tower'],
+  dolma: ['Dolmabahçe Palace', 'Dolmabahce Palace'],
+  bridge: ['Bosphorus Bridge'],
+  spice: ['Spice Bazaar'],
+  maiden: ["Maiden's Tower", 'Maiden Tower', 'Kız Kulesi', 'Kiz Kulesi'],
+  taksim: ['Taksim Square']
+}
+
+function normalizePlaceName(value: string): string {
+  return value
+    .toLocaleLowerCase('tr-TR')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ı/g, 'i')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function poiDisplayCategory(poi: Pick<Poi, 'uxCategory' | 'category'>): string {
+  const ux = poi.uxCategory?.trim()
+  if (ux) return ux
+  return poi.category
+}
+
+function recommendationDisplayCategory(rec: RankedRecommendation): string {
+  const poiId =
+    rec.poi_id != null && String(rec.poi_id).trim()
+      ? String(rec.poi_id).trim()
+      : null
+  if (poiId) {
+    const matchedPoi = allPoisForMap.find((poi) => poi.id === poiId)
+    if (matchedPoi) return poiDisplayCategory(matchedPoi)
+  }
+  return String(rec.category ?? '')
+}
 
 function areaTrafficLevel(crowdScore: number): 'Low' | 'Medium' | 'High' {
   const adj = Math.min(99, Math.max(1, crowdScore + Math.round(crowdScore * 0.08) - 6))
@@ -37,179 +170,112 @@ function areaTrafficLevel(crowdScore: number): 'Low' | 'Medium' | 'High' {
 }
 
 function bestTimeHint(crowdLevel: string): string {
-  if (crowdLevel === 'High') return 'Try an earlier or later visit if you want a calmer stop.'
-  if (crowdLevel === 'Medium') return 'A little planning helps here; quieter hours are usually easier.'
-  return 'This stop looks manageable for most visits.'
+  if (crowdLevel === 'High') return 'Early morning (before 9:00) or late weekday afternoons tend to be calmer.'
+  if (crowdLevel === 'Medium') return 'Midday is usually busier; late morning or early evening are softer windows.'
+  return 'Most times look comfortable; still avoid major holidays if you prefer quiet.'
 }
+
+let currentForecastBasisWeekStart = ''
 
 const root = document.querySelector<HTMLDivElement>('#app')
 if (!root) throw new Error('Missing #app mount element')
 
 root.innerHTML = `
-  <div class="page">
-    <div class="topbar">
-      <div class="topbarInner">
-        <div class="brand">
-          <div class="brandMark" aria-hidden="true"></div>
-          <div class="brandText">
-            <h1>Istanbul Crowd Compass</h1>
-            <p class="brandTagline">
-              Pick a landmark, get a quick crowd read, and decide whether to stay with it or switch to a nearby alternative.
-            </p>
-          </div>
-        </div>
-
-        <div class="apiPill" title="Backend API (Flask)">
-          <div class="apiDot" aria-hidden="true"></div>
-          <span>Flask API (localhost:8080)</span>
-        </div>
-      </div>
-    </div>
+  <div class="page page--premium page--retro">
+    <header class="topbar topbar--slim" role="banner">
+      <h1 class="topbar__title">İstanbul Crowd Compass</h1>
+    </header>
 
     <div class="layout">
-      <div class="panel">
-        <section class="card">
-          <div class="flowBlock">
-            <div class="fieldLabel">
-              <span>Starting point</span>
-              <span class="hint">optional</span>
-            </div>
-            <div class="btnRow">
-              <button id="useMyLocationBtn" class="btn btnPrimary btnInline" type="button">
-                Use my location
-              </button>
-            </div>
-            <div id="locationStatus" class="hint" style="margin-top: 8px"></div>
-
-            <div class="filterGrid">
-              <div>
-                <div class="fieldLabel">
-                  <span>Category</span>
-                  <span class="hint">optional</span>
-                </div>
-                <select id="filterCategory" class="select" aria-label="Filter by place category">
-                  ${POI_CATEGORIES.map(
-                    (c) =>
-                      `<option value="${c}">${c === 'all' ? 'All categories' : c}</option>`
-                  ).join('')}
-                </select>
-              </div>
-              <div>
-                <div class="fieldLabel">
-                  <span>Modeled period</span>
-                  <span class="hint">demo control</span>
-                </div>
-                <select id="forecastPeriod" class="select" aria-label="Choose modeled forecast period">
-                  <option value="">Latest modeled week</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div class="cardTitleRow" style="margin-top: 14px">
-            <h2>Map Selection</h2>
-            <div class="hint">Current location or map tap</div>
-          </div>
-
-          <div class="hint" style="margin-top:10px">
-            Use your current location, tap the map, or search for a landmark below.
-          </div>
-
-          <div class="selectionBlock">
-            <div class="fieldLabel" style="margin-top:14px">
-              <span>Selection</span>
-              <span class="hint">syncs with map marker</span>
-            </div>
-            <div class="selectionLine">
-              <div class="chip" id="selectionChip">
-                <i id="selectionChipDot" aria-hidden="true"></i>
-                <span id="selectionKindText">—</span>
-              </div>
-              <div class="selectionLabel" id="selectionLabelText">Search for a landmark or tap the map</div>
-            </div>
-            <div class="coords">
-              <span>Coordinates</span>
-              <span id="selectionCoordsText">—</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="card">
+      <div class="panel panel--search" id="explorePanel">
+        <section class="card card--search card--lead">
           <div class="cardTitleRow">
-            <h2>Landmark Search</h2>
-            <div class="hint">POIs only</div>
+            <h2>Search</h2>
           </div>
 
-          <div class="fieldLabel">
-            <span>Find a landmark</span>
-            <span class="hint">anchor for alternatives</span>
-          </div>
-          <input
-            id="globalSearchInput"
-            class="input"
-            type="text"
-            placeholder="Search landmarks like Hagia Sophia or Galata Tower…"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <div id="globalSearchResults" class="results" aria-live="polite" role="listbox"></div>
-
-          <div class="hint" style="margin-top:10px">
-            Pick a landmark to trigger crowd-aware alternative suggestions nearby.
+          <div class="searchShell">
+            <label class="srOnly" for="globalSearchInput">Find a place</label>
+            <div class="searchInputRow">
+              <span class="searchGlyph" aria-hidden="true">⌕</span>
+              <input
+                id="globalSearchInput"
+                class="input input--search"
+                type="text"
+                placeholder="Places, districts, landmarks…"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+            <div id="globalSearchResults" class="results results--rich" aria-live="polite" role="listbox"></div>
           </div>
         </section>
+        <div class="sideVideoStack" aria-label="Istanbul video clips">${SIDE_VIDEO_STACK_HTML}</div>
       </div>
 
-      <section class="mapWrap mapStage">
-        <div id="map" class="map" aria-label="Interactive map (tap or click to select)"></div>
-        <div class="forecastSpotlight forecastSheet" id="forecastSheetRoot" aria-live="polite">
+      <div class="mapColumn">
+        <section class="mapWrap mapStage" id="mapStage">
+        <div id="map" class="map" aria-label="Interactive map with clickable POI markers"></div>
+        <button type="button" id="mapFullscreenBtn" class="fab fab--expand" aria-pressed="false" aria-label="Immersive map">
+          <span class="fab__glyph" aria-hidden="true">⛶</span>
+        </button>
+        <div
+          class="forecastSpotlight forecastSheet forecastSheet--peek"
+          id="forecastSheetRoot"
+          aria-live="polite"
+        >
           <button
             type="button"
             class="sheetHandleBtn"
             id="forecastSheetToggle"
-            aria-expanded="true"
+            aria-expanded="false"
             aria-controls="forecastSheetCollapsible"
-            aria-label="Collapse place detail"
+            aria-label="Pin place detail open (or hover the panel to preview)"
           >
             <span class="sheetHandle" aria-hidden="true"></span>
             <span class="sheetChevron" aria-hidden="true">▼</span>
           </button>
           <div class="sheetSwipeStrip" id="sheetSwipeStrip">
             <div class="forecastHeader">
-              <p id="detailScreenLabel">POI / place detail</p>
+              <p id="detailScreenLabel">Place</p>
+              <span>Outlook</span>
             </div>
             <div class="forecastTitle" id="forecastTitleText">Select a place on the map or via search</div>
             <div class="forecastLevelRow">
               <div>
-                <div class="forecastLabel" id="forecastCrowdLabel">Expected crowd</div>
+                <div class="forecastLabel" id="forecastCrowdLabel">Crowd outlook</div>
                 <div class="forecastLevel" id="forecastLevelText">—</div>
               </div>
               <div>
-                <div class="forecastLabel">Crowd level</div>
+                <div class="forecastLabel">Crowd index</div>
                 <div class="forecastScore"><span id="forecastScoreText">—</span><small>/100</small></div>
               </div>
             </div>
+            <div id="forecastBadges" class="forecastBadges" aria-label="Highlights"></div>
           </div>
           <div id="forecastSheetCollapsible" class="sheetCollapsible">
             <p class="forecastInterpret" id="forecastInterpretation"></p>
             <div class="detailExtra">
               <div class="miniRow">
-                <span class="miniLabel">City activity</span>
+                <span class="miniLabel">Area traffic</span>
                 <span class="miniValue" id="areaTrafficText">—</span>
               </div>
               <div class="miniRow">
-                <span class="miniLabel">Visit note</span>
+                <span class="miniLabel">Best time</span>
                 <span class="miniHint" id="bestTimeText">—</span>
               </div>
             </div>
+            <div class="trendLine">
+              <span>Trend</span>
+              <div id="forecastTrendText">Awaiting selection…</div>
+            </div>
             <div id="crowdedWarning" class="crowdedWarn" hidden>
-              <strong id="crowdedWarnTitle">Crowd update</strong>
+              <strong id="crowdedWarnTitle">Busy right now</strong>
               <p id="crowdedWarnBody">
-                We’ll tell you whether this place looks manageable or whether it’s worth switching nearby.
+                This selection looks crowded for your chosen window. Consider an alternative below.
               </p>
             </div>
             <div id="alternativesBlock" class="altBlock" hidden>
-              <div class="altTitle" id="alternativesTitle">Nearby alternatives</div>
+              <div class="altTitle" id="alternativesTitle">Alternatives nearby</div>
               <div id="alternativesList" class="altList" role="list"></div>
             </div>
           </div>
@@ -221,11 +287,83 @@ root.innerHTML = `
         </div>
       </section>
 
-      <div class="mobileNavBar" aria-label="Navigation">
-        <button id="openMapsBtnMobile" class="btn btnPrimary" type="button" disabled>
-          Open in Google Maps
-        </button>
+        <section class="spotGuide popularPathBelow" aria-label="Landmarks">
+          <div class="popularPathMount spotGuide__mount" id="popularPathMount"></div>
+        </section>
       </div>
+
+      <div class="panel panel--trip" id="tripPanel">
+        <section class="card card--explore">
+          <div class="flowBlock">
+            <div class="btnRow">
+              <button id="useMyLocationBtn" class="btn btnPrimary btnInline btn--sm" type="button">
+                Use my location
+              </button>
+            </div>
+            <div id="locationStatus" class="hint" style="margin-top: 8px"></div>
+
+            <div class="categoryBubblesWrap">
+              <div class="fieldLabel">
+                <span>Category</span>
+              </div>
+              <div class="categoryBubbles" role="group" aria-label="Filter by place category">
+                ${CATEGORY_BUBBLES_HTML}
+              </div>
+            </div>
+            <div class="visitDateRow">
+              <div class="fieldLabel">
+                <span>Modeled period</span>
+              </div>
+              <div class="selectShell selectShell--period">
+                <select id="forecastPeriodSelect" class="select select--period" aria-label="Choose modeled forecast period">
+                  <option value="">Latest modeled week</option>
+                </select>
+                <span class="selectShell__chevron" aria-hidden="true">▾</span>
+              </div>
+            </div>
+            <div class="visitDateRow">
+              <div class="fieldLabel">
+                <span>Visit date</span>
+              </div>
+              <input type="hidden" id="visitDatePicker" value="" autocomplete="off" />
+              <div class="miniCalendar" id="visitCalendarShell" aria-label="Choose visit date">
+                <div class="miniCalendar__nav">
+                  <button type="button" class="miniCalendar__navBtn" id="visitCalPrev" aria-label="Previous month">
+                    ‹
+                  </button>
+                  <div class="miniCalendar__month" id="visitCalMonthYear"></div>
+                  <button type="button" class="miniCalendar__navBtn" id="visitCalNext" aria-label="Next month">
+                    ›
+                  </button>
+                </div>
+                <div class="miniCalendar__weekdays" aria-hidden="true">
+                  <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+                </div>
+                <div class="miniCalendar__cells" id="visitCalGrid" role="group"></div>
+                <button type="button" class="miniCalendar__clear" id="visitCalClear">
+                  Clear · use right now
+                </button>
+              </div>
+            </div>
+            <div class="sideVideoStack sideVideoStack--trip" aria-label="More Istanbul video clips">${SIDE_VIDEO_TRIP_STACK_HTML}</div>
+          </div>
+        </section>
+      </div>
+
+      <nav class="mobileDock" aria-label="Quick actions">
+        <button type="button" class="dockBtn" id="dockExplore" aria-label="Scroll to explore">
+          <span class="dockBtn__ic" aria-hidden="true">◇</span>
+          <span class="dockBtn__tx">Explore</span>
+        </button>
+        <button type="button" class="dockBtn" id="dockMap" aria-label="Scroll to map">
+          <span class="dockBtn__ic" aria-hidden="true">◎</span>
+          <span class="dockBtn__tx">Map</span>
+        </button>
+        <button id="openMapsBtnMobile" class="dockBtn dockBtn--accent" type="button" disabled aria-label="Open in Google Maps">
+          <span class="dockBtn__ic" aria-hidden="true">→</span>
+          <span class="dockBtn__tx">Go</span>
+        </button>
+      </nav>
     </div>
   </div>
 `
@@ -236,61 +374,213 @@ function el<T extends HTMLElement>(id: string): T {
   return node as T
 }
 
-function formatCoord(p: LatLng) {
-  return `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`
+function localDateInputValue(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
-function dotColor(kind: SelectionKind): string {
-  return kind === 'hotel'
-    ? 'var(--accentA)'
-    : kind === 'poi'
-      ? 'var(--accentB)'
-      : kind === 'location'
-        ? 'var(--accentC)'
-        : 'var(--accentD)'
+function startOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1)
 }
 
-function kindLabel(kind: SelectionKind): string {
-  switch (kind) {
-    case 'hotel':
-      return 'Hotel'
-    case 'location':
-      return 'Current location'
-    case 'poi':
-      return 'Point of interest'
-    case 'map':
-      return 'Pinned location'
+/** Visible month in the always-open visit calendar (local, 1st of month). */
+let visitCalView = startOfMonth(new Date())
+const _visitCalInitDay = new Date()
+_visitCalInitDay.setHours(0, 0, 0, 0)
+let visitCalMinD = new Date(_visitCalInitDay)
+let visitCalMaxD = new Date(_visitCalInitDay)
+visitCalMaxD.setFullYear(visitCalMaxD.getFullYear() + 1)
+
+function clampVisitCalViewToRange(): void {
+  const minYm = visitCalMinD.getFullYear() * 12 + visitCalMinD.getMonth()
+  const maxYm = visitCalMaxD.getFullYear() * 12 + visitCalMaxD.getMonth()
+  let vm = visitCalView.getFullYear() * 12 + visitCalView.getMonth()
+  vm = Math.max(minYm, Math.min(maxYm, vm))
+  visitCalView = new Date(Math.floor(vm / 12), vm % 12, 1)
+}
+
+function renderVisitCalendar(): void {
+  const grid = document.getElementById('visitCalGrid')
+  const monthYearEl = document.getElementById('visitCalMonthYear')
+  const prevBtn = document.getElementById('visitCalPrev') as HTMLButtonElement | null
+  const nextBtn = document.getElementById('visitCalNext') as HTMLButtonElement | null
+  const hidden = document.getElementById('visitDatePicker') as HTMLInputElement | null
+  if (!grid || !monthYearEl || !prevBtn || !nextBtn || !hidden) return
+
+  const selected = hidden.value.trim()
+  const y = visitCalView.getFullYear()
+  const m = visitCalView.getMonth()
+
+  monthYearEl.textContent = new Date(y, m, 1).toLocaleDateString(undefined, {
+    month: 'long',
+    year: 'numeric'
+  })
+
+  const minYm = visitCalMinD.getFullYear() * 12 + visitCalMinD.getMonth()
+  const maxYm = visitCalMaxD.getFullYear() * 12 + visitCalMaxD.getMonth()
+  const viewYm = y * 12 + m
+  prevBtn.disabled = viewYm <= minYm
+  nextBtn.disabled = viewYm >= maxYm
+
+  grid.replaceChildren()
+  const first = new Date(y, m, 1)
+  const lastDay = new Date(y, m + 1, 0).getDate()
+  const lead = (first.getDay() + 6) % 7
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  for (let i = 0; i < lead; i++) {
+    const pad = document.createElement('span')
+    pad.className = 'miniCalendar__pad'
+    pad.setAttribute('aria-hidden', 'true')
+    grid.appendChild(pad)
+  }
+
+  for (let d = 1; d <= lastDay; d++) {
+    const cellDate = new Date(y, m, d)
+    cellDate.setHours(0, 0, 0, 0)
+    const ymd = localDateInputValue(cellDate)
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'miniCalendar__day'
+    btn.textContent = String(d)
+    btn.setAttribute(
+      'aria-label',
+      cellDate.toLocaleDateString(undefined, {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      })
+    )
+    btn.style.setProperty('--day-delay', `${((d + lead) % 7) * 0.04}s`)
+
+    if (cellDate < visitCalMinD || cellDate > visitCalMaxD) {
+      btn.disabled = true
+      btn.classList.add('miniCalendar__day--muted')
+    } else {
+      btn.addEventListener('click', () => {
+        hidden.value = ymd
+        renderVisitCalendar()
+        onFilterChange()
+      })
+    }
+
+    if (ymd === selected) btn.classList.add('isSelected')
+    if (cellDate.getTime() === today.getTime()) btn.classList.add('miniCalendar__day--today')
+
+    grid.appendChild(btn)
   }
 }
 
-function getHorizonWeeks(): number {
-  return 4
+function syncVisitDatePickerBounds(): void {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  visitCalMinD = new Date(today)
+  visitCalMaxD = new Date(today)
+  visitCalMaxD.setFullYear(visitCalMaxD.getFullYear() + 1)
+  clampVisitCalViewToRange()
+  renderVisitCalendar()
 }
 
-function getSelectedForecastPeriod(): string | undefined {
-  const node = document.getElementById('forecastPeriod') as HTMLSelectElement | null
-  const value = node?.value?.trim() ?? ''
-  return value || undefined
-}
-
-function getEffectiveForecastPeriodStart(): string | undefined {
-  return getSelectedForecastPeriod() || forecastPeriods[0]?.id
-}
-
-function getModeledTimestampIso(): string {
-  const basis = getEffectiveForecastPeriodStart()
-  return basis ? `${basis}T12:00:00` : new Date().toISOString()
+/** ISO timestamp for ``POST /api/recommendations``: chosen day + current clock, or now when the date is cleared. */
+function getRecommendationTimestampISO(): string {
+  const input = document.getElementById('visitDatePicker') as HTMLInputElement | null
+  const raw = input?.value?.trim()
+  if (!raw) return new Date().toISOString()
+  const parts = raw.split('-').map(Number)
+  const y = parts[0]
+  const mo = parts[1]
+  const d = parts[2]
+  if (!y || !mo || !d) return new Date().toISOString()
+  const now = new Date()
+  const visit = new Date(y, mo - 1, d, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds())
+  return visit.toISOString()
 }
 
 function getCategoryFilter(): string {
-  const node = document.getElementById('filterCategory') as HTMLSelectElement | null
-  const v = node?.value ?? 'all'
+  const active = document.querySelector<HTMLButtonElement>('.categoryBubble.isActive')
+  const v = active?.dataset.category ?? 'all'
   return v === 'all' ? '' : v
+}
+
+let allPoisForMap: Poi[] = []
+let poiCrowdLevels = new Map<string, 'Low' | 'Medium' | 'High'>()
+let highlightedRecommendationPoiIds = new Set<string>()
+let recommendationLineTargets: LatLng[] = []
+let poiForecastRefreshToken = 0
+
+function refreshPoiMarkers(): void {
+  const cat = getCategoryFilter()
+  const mapPois = allPoisForMap.filter((poi) => poi.mapEligible !== false)
+  const visiblePois = cat ? mapPois.filter((poi) => poiDisplayCategory(poi) === cat) : mapPois
+  const selectedPoiId = currentSelection?.kind === 'poi' ? currentSelection.entityId ?? null : null
+  const hasPoiFocus = Boolean(selectedPoiId)
+  map.setPoiMarkers(
+    visiblePois.map((poi) => ({
+      ...poi,
+      crowdLevel: poiCrowdLevels.get(poi.id),
+      isSelected: selectedPoiId === poi.id,
+      isRecommended: highlightedRecommendationPoiIds.has(poi.id),
+      isFaded:
+        hasPoiFocus &&
+        selectedPoiId !== poi.id &&
+        !highlightedRecommendationPoiIds.has(poi.id)
+    })),
+    selectedPoiId,
+    recommendationLineTargets,
+    (poiId) => {
+      if (currentSelection?.kind === 'poi' && currentSelection.entityId === poiId) {
+        clearCurrentSelection()
+        return
+      }
+      const poi = allPoisForMap.find((p) => p.id === poiId)
+      if (!poi) return
+      selectPoi(poi)
+    }
+  )
+}
+
+async function refreshPoiCrowdLevels(): Promise<void> {
+  if (allPoisForMap.length === 0) return
+  const token = ++poiForecastRefreshToken
+  const nextLevels = new Map<string, 'Low' | 'Medium' | 'High'>()
+
+  await Promise.all(
+    allPoisForMap.map(async (poi) => {
+      try {
+        const res = await forecast(
+          {
+            kind: 'poi',
+            label: poi.name,
+            latlng: { lat: poi.lat, lng: poi.lng },
+            entityId: poi.id
+          },
+          FORECAST_HORIZON_WEEKS,
+          currentForecastBasisWeekStart || undefined
+        )
+        nextLevels.set(poi.id, res.level)
+      } catch {
+        nextLevels.set(poi.id, 'Medium')
+      }
+    })
+  )
+
+  if (token !== poiForecastRefreshToken) return
+  poiCrowdLevels = nextLevels
+  refreshPoiMarkers()
 }
 
 function applyCategoryToSearchResults(items: SearchResult[]): SearchResult[] {
   const cat = getCategoryFilter()
-  return items.filter((i) => i.kind === 'poi' && (!cat || i.poi.category === cat))
+  if (!cat) return items
+  return items.filter((i) => {
+    if (i.kind !== 'poi') return true
+    return poiDisplayCategory(i.poi) === cat
+  })
 }
 
 function googleMapsDirectionsUrl(sel: MapSelection): string {
@@ -298,11 +588,133 @@ function googleMapsDirectionsUrl(sel: MapSelection): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${lat},${lng}`)}`
 }
 
-function pickPoiIdFromRankedRec(rec: RankedRecommendation): string | null {
-  const raw = rec.poi_id ?? rec.id
-  if (typeof raw !== 'string') return null
-  const trimmed = raw.trim()
-  return trimmed ? trimmed : null
+async function execGlobalSearch(query: string, container: HTMLDivElement) {
+  const trimmed = query.trim()
+  const cat = getCategoryFilter()
+  if (!trimmed && cat) {
+    clearResults(container)
+    const matches = allPoisForMap
+      .filter((poi) => poi.mapEligible !== false)
+      .filter((poi) => poiDisplayCategory(poi) === cat)
+      .slice(0, 12)
+
+    if (matches.length === 0) {
+      showWarmEmpty(container, 'No visible POIs in this category yet. Try a different filter.', 'Nothing here yet')
+      return
+    }
+
+    matches.forEach((poi, i) => {
+      container.appendChild(makePoiRow(poi, i))
+    })
+    return
+  }
+
+  setSkeletonResults(container)
+  try {
+    const items = await searchEverything(query)
+    clearResults(container)
+    const filtered = applyCategoryToSearchResults(items)
+    if (filtered.length === 0) {
+      showWarmEmpty(
+        container,
+        items.length === 0
+          ? 'Try a landmark, neighborhood, or hotel name—we’ll surface matches as you type.'
+          : 'Nothing in this category—switch to “All categories” for more.'
+      )
+      return
+    }
+    filtered.forEach((item, i) => {
+      if (item.kind === 'hotel') container.appendChild(makeHotelRow(item.hotel, i))
+      else container.appendChild(makePoiRow(item.poi, i))
+    })
+  } catch {
+    showWarmEmpty(
+      container,
+      'Check your connection or try again. Search works even when extra services are offline.',
+      'Search unavailable'
+    )
+  }
+}
+
+function buildForecastBadgesHtml(level: string, selection: AppSelection): string {
+  const matchedPoi =
+    selection.kind === 'poi' && selection.entityId
+      ? allPoisForMap.find((poi) => poi.id === selection.entityId)
+      : null
+
+  const poiTags = matchedPoi?.tags?.filter((tag) => tag.trim()) ?? []
+  const parts: { text: string; mod: string }[] = []
+
+  if (poiTags.length > 0) {
+    for (const tag of poiTags.slice(0, 4)) {
+      let mod = 'forecastBadge--tour'
+      const norm = tag.toLowerCase()
+      if (norm.includes('scenic')) mod = 'forecastBadge--sun'
+      else if (norm.includes('religious') || norm.includes('heritage')) mod = 'forecastBadge--quiet'
+      else if (norm.includes('iconic') || norm.includes('museum') || norm.includes('palatial')) mod = 'forecastBadge--tour'
+      parts.push({ text: tag, mod })
+    }
+  } else {
+    if (level === 'Low') parts.push({ text: 'Low crowd', mod: 'forecastBadge--quiet' })
+    if (level === 'Medium') parts.push({ text: 'Moderate crowd', mod: 'forecastBadge--tour' })
+    if (level === 'High') parts.push({ text: 'High crowd', mod: 'forecastBadge--peak' })
+    if (selection.kind === 'poi') parts.push({ text: 'Point of interest', mod: 'forecastBadge--gem' })
+  }
+
+  return parts
+    .slice(0, 4)
+    .map((p) => `<span class="forecastBadge ${p.mod}">${escapeHtml(p.text)}</span>`)
+    .join('')
+}
+
+function renderDiscoveryPanel(container: HTMLDivElement) {
+  const recent = recentSearchesGet().slice(0, 3)
+  const recentBlock =
+    recent.length === 0
+      ? ''
+      : `<div class="discSection"><div class="discSection__title">Recent searches</div>${recent
+          .map(
+            (q) =>
+              `<button type="button" class="discRow" data-q="${escapeHtml(q)}"><span class="discRow__hint">Again</span><span class="discRow__name">${escapeHtml(q)}</span></button>`
+          )
+          .join('')}</div>`
+
+  const trendBlock = `<div class="discSection"><div class="discSection__title">Iconic places</div>${TRENDING_ISTANBUL.map(
+    (t: DiscoveryItem) => {
+      const landmark = POPULAR_ISTANBUL_TOP10.find((p) => p.name === t.query)
+      const landmarkAttr = landmark ? ` data-landmark="${escapeHtml(landmark.id)}"` : ''
+      return `<button type="button" class="discRow discRow--rich"${landmarkAttr} data-q="${escapeHtml(t.query)}"><span class="discRow__ic" aria-hidden="true">${t.icon}</span><span class="discRow__stack"><span class="discRow__name">${escapeHtml(t.query)}</span><span class="discRow__sub">${escapeHtml(t.subtitle ?? '')}</span></span></button>`
+    }
+  ).join('')}</div>`
+
+  container.innerHTML = `<div class="discoveryPanel animStagger">${trendBlock}${recentBlock}</div>`
+  container.querySelectorAll<HTMLButtonElement>('button[data-q]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const q = btn.getAttribute('data-q') ?? ''
+      const landmarkId = btn.getAttribute('data-landmark')?.trim()
+      if (landmarkId) {
+        const landmark = POPULAR_ISTANBUL_TOP10.find((p) => p.id === landmarkId)
+        if (landmark) {
+          focusExplorerLandmark({
+            id: landmark.id,
+            name: landmark.name,
+            lat: landmark.lat,
+            lng: landmark.lng
+          })
+          return
+        }
+      }
+      const input = document.getElementById('globalSearchInput') as HTMLInputElement | null
+      if (input) input.value = q
+      recentSearchesAdd(q)
+      void execGlobalSearch(q, container)
+    })
+  })
+}
+
+function resetSearchPanelToDiscovery(): void {
+  globalSearchInput.value = ''
+  renderDiscoveryPanel(globalSearchResults)
 }
 
 async function fillAlternativesIfCrowded(sel: AppSelection, crowdLevel: string, forecastScope: string) {
@@ -314,52 +726,42 @@ async function fillAlternativesIfCrowded(sel: AppSelection, crowdLevel: string, 
   const altTitle = el<HTMLDivElement>('alternativesTitle')
 
   const showRecommendations = sel.kind === 'location'
-  const showAnchorAlternatives = sel.kind === 'poi' && typeof sel.entityId === 'string'
-  const isHighCrowd = crowdLevel === 'High'
-  const isMediumCrowd = crowdLevel === 'Medium'
-  const shouldOfferAlternatives = isHighCrowd || isMediumCrowd
+  const shouldSuggestAlternatives = crowdLevel === 'High' || crowdLevel === 'Medium'
 
-  warn.classList.remove('isCalm')
+  warn.hidden = crowdLevel === 'Low'
+  block.hidden = !(shouldSuggestAlternatives || showRecommendations)
   list.innerHTML = ''
-  if (showRecommendations && shouldOfferAlternatives) {
-    warn.hidden = false
-    block.hidden = false
-    altTitle.textContent = 'Places nearby'
-    warnTitle.textContent = isHighCrowd ? 'Busy right now' : 'Calmer options nearby'
-    warnBody.textContent = isHighCrowd
-      ? 'This area looks busy enough that a nearby switch may help.'
-      : 'This area looks manageable, but these nearby options may feel a bit calmer.'
-  } else if (showRecommendations) {
-    warn.hidden = true
-    block.hidden = true
-    return
-  } else if (showAnchorAlternatives && shouldOfferAlternatives) {
-    warn.hidden = false
-    block.hidden = false
-    altTitle.textContent = `Nearby alternatives to ${sel.label}`
-    warnTitle.textContent = isHighCrowd ? 'Try a nearby alternative' : 'Calmer alternatives if you want them'
-    warnBody.textContent = isHighCrowd
-      ? 'This landmark looks busy. The list below favors nearby options that keep a similar feel with less pressure.'
-      : 'This landmark looks manageable, but the list below highlights nearby options with a similar feel and lower pressure.'
-  } else if (showAnchorAlternatives) {
-    warn.hidden = false
-    block.hidden = true
-    warn.classList.add('isCalm')
-    warnTitle.textContent = 'You are good to go'
+  highlightedRecommendationPoiIds = new Set<string>()
+  recommendationLineTargets = []
+  if (showRecommendations) {
+    altTitle.textContent = 'Recommended nearby'
+    warnTitle.textContent = 'Busy right now'
     warnBody.textContent =
-      'This landmark looks relatively calm right now, so there is no strong reason to switch away from it.'
-    return
-  } else {
-    warn.hidden = true
-    block.hidden = true
+      'This selection looks crowded for your chosen window. Consider an alternative below.'
+    warn.hidden = crowdLevel === 'Low'
+  } else if (!showRecommendations && !shouldSuggestAlternatives) {
+    warnTitle.textContent = 'Comfortable right now'
+    warnBody.textContent =
+      'This place looks manageable for the selected period, so alternative suggestions are hidden unless crowd pressure rises.'
+    altTitle.textContent = 'Alternatives nearby'
+    refreshPoiMarkers()
     return
   }
 
   if (!showRecommendations && forecastScope === 'city_wide') {
-    warnTitle.textContent = isHighCrowd ? 'Try a nearby alternative' : 'Calmer alternatives if you want them'
-    warnBody.textContent = isHighCrowd
-      ? 'This landmark looks busy enough that a nearby switch may give you a more comfortable visit.'
-      : 'This landmark does not look overloaded, but these nearby alternatives may offer a calmer visit.'
+    warnTitle.textContent = crowdLevel === 'Medium' ? 'Moderate week city-wide' : 'Busy week city-wide'
+    warnBody.textContent =
+      crowdLevel === 'Medium'
+        ? 'This week looks moderately busy across Istanbul, so nearby alternatives are shown in case you want a calmer option.'
+        : 'Pressure is high across Istanbul this week—the outlook isn’t a live queue at this pin. Nearby suggestions are for inspiration.'
+    altTitle.textContent = 'Other places nearby'
+  } else if (!showRecommendations) {
+    warnTitle.textContent = crowdLevel === 'Medium' ? 'Manageable, but worth comparing' : 'Crowd outlook unavailable'
+    warnBody.textContent =
+      crowdLevel === 'Medium'
+        ? 'This place is not overloaded, but a few nearby alternatives may offer a calmer visit.'
+        : 'We couldn’t load a full weekly score—nearby places are shown for exploration only.'
+    altTitle.textContent = 'Alternatives nearby'
   }
 
   const cat = getCategoryFilter()
@@ -367,26 +769,41 @@ async function fillAlternativesIfCrowded(sel: AppSelection, crowdLevel: string, 
   try {
     const data = await fetchRecommendations({
       origin: sel.latlng,
-      timestamp: getModeledTimestampIso(),
-      radiusKm: showRecommendations ? 10 : showAnchorAlternatives ? 6 : 25,
-      topK: showRecommendations ? 4 : showAnchorAlternatives ? 3 : 4,
+      timestamp: getRecommendationTimestampISO(),
+      radiusKm: showRecommendations ? 10 : 25,
+      topK: showRecommendations ? 6 : 4,
       includeItinerary: false,
-      ...(showAnchorAlternatives
+      ...(sel.kind === 'poi' && sel.entityId
         ? { anchorPoiId: sel.entityId, anchorRadiusKm: 3 }
-        : cat
-          ? { allowedCategories: [cat] }
-          : {})
+        : {}),
+      ...(cat ? { allowedCategories: [cat] } : {})
     })
     const recs = data.recommendations
-    if (recs.length === 0) {
-      list.innerHTML = showAnchorAlternatives
-        ? '<p class="altEmpty">No strong nearby alternative stood out for this landmark.</p>'
-        : '<p class="altEmpty">No strong nearby places stood out for this area.</p>'
+    const matchedRecs = recs.filter((rec) => {
+      const poiId =
+        rec.poi_id != null && String(rec.poi_id).trim()
+          ? String(rec.poi_id).trim()
+          : null
+      return poiId ? allPoisForMap.some((poi) => poi.id === poiId) : false
+    })
+    if (matchedRecs.length === 0) {
+      list.innerHTML =
+        '<p class="altEmpty">No suggestions for this spot yet—try another category or move the map.</p>'
+      refreshPoiMarkers()
       return
     }
-    for (const rec of recs) {
-      const name = String(rec.name ?? 'Place')
-      const dist = rec.distance_km
+    for (const rec of matchedRecs) {
+      const recPoiId =
+        rec.poi_id != null && String(rec.poi_id).trim()
+          ? String(rec.poi_id).trim()
+          : null
+      const matchedPoi = recPoiId ? allPoisForMap.find((poi) => poi.id === recPoiId) : null
+      const ranked = {
+        ...(rec as RankedRecommendation),
+        ...(matchedPoi ? { tags: matchedPoi.tags, category: poiDisplayCategory(matchedPoi) } : {})
+      } as RankedRecommendation
+      const name = String(ranked.name ?? 'Place')
+      const dist = ranked.distance_km
       const km =
         typeof dist === 'number'
           ? dist
@@ -399,56 +816,94 @@ async function fillAlternativesIfCrowded(sel: AppSelection, crowdLevel: string, 
           : Number.isFinite(km)
             ? `${km.toFixed(1)} km`
             : '—'
-      const metaCat = String(rec.category ?? '')
-      const crowd = String(rec.crowd_level_label ?? '')
-      const explanation = String(rec.explanation ?? rec.explanation_text ?? '')
-      const b = document.createElement('button')
-      b.type = 'button'
-      b.className = 'altPoiBtn'
+      const metaCat = recommendationDisplayCategory(ranked)
+      const crowdRaw = String(ranked.crowd_level_label ?? '')
+      const thumb = gradientThumbStyle(name)
+      const photoUrl = rankedRowPhotoUrl(ranked)
+      const llAlt = pickLatLngFromRankedRec(ranked)
+      if (recPoiId) highlightedRecommendationPoiIds.add(recPoiId)
+      if (llAlt) recommendationLineTargets.push(llAlt)
+      const badges = recommendationMicroBadges(ranked)
+        .map((t) => `<span class="microBadge">${escapeHtml(t)}</span>`)
+        .join('')
+      const dot = crowdDotClass(crowdRaw || 'Medium')
+      const whyLine = recommendationWhyLine(ranked)
+      const favId = `rec:${String(ranked.poi_id ?? name)}`
+      const favOn = favoriteHas(favId)
+
+      const b = document.createElement('div')
+      b.className = 'altCard'
       b.setAttribute('role', 'listitem')
-      const metaBits = [metaCat, distLabel, crowd ? `crowd ${crowd}` : ''].filter(Boolean)
-      const nameEl = document.createElement('span')
-      nameEl.className = 'altPoiName'
-      nameEl.textContent = name
-
-      const metaEl = document.createElement('span')
-      metaEl.className = 'altPoiMeta'
-      metaEl.textContent = metaBits.join(' · ')
-
-      b.appendChild(nameEl)
-      b.appendChild(metaEl)
-
-      if (explanation.trim()) {
-        const explanationEl = document.createElement('span')
-        explanationEl.className = 'altPoiMeta altPoiExplanation'
-        explanationEl.textContent = explanation
-        b.appendChild(explanationEl)
-      }
-      const ll = pickLatLngFromRankedRec(rec)
-      const poiId = pickPoiIdFromRankedRec(rec)
-      if (ll) {
-        b.addEventListener('click', () => {
-          const next: AppSelection = { latlng: ll, label: name, kind: poiId ? 'poi' : 'location', ...(poiId ? { entityId: poiId } : {}) }
-          currentSelection = next
-          setChip(next)
-          map.setMarker(next, { flyTo: true })
+      b.tabIndex = 0
+      const altThumb = altCardThumbBlock({
+        photoUrl,
+        placeName: name,
+        lat: llAlt?.lat,
+        lng: llAlt?.lng,
+        gradientCss: thumb,
+        iconHtml: categoryIcon(metaCat, 'poi')
+      })
+      b.innerHTML = `
+        ${altThumb}
+        <div class="altCard__body">
+          <div class="altCard__head">
+            <span class="crowdDot ${dot}" aria-hidden="true"></span>
+            <span class="microAi">Pick</span>
+            <button type="button" class="favBtn favBtn--sm ${favOn ? 'isOn' : ''}" data-favid="${escapeHtml(favId)}" aria-label="Save">${favOn ? '♥' : '♡'}</button>
+          </div>
+          <span class="altCard__name">${escapeHtml(name)}</span>
+          <span class="altCard__meta">${escapeHtml(metaCat)} · ${escapeHtml(distLabel)}</span>
+          <div class="microBadgeRow">${badges}</div>
+          <div class="bestTimeMini"><span>Why this works</span> ${escapeHtml(whyLine)}</div>
+        </div>`
+      const fav = b.querySelector('.favBtn')
+      fav?.addEventListener('click', (ev) => {
+        ev.stopPropagation()
+        const on = favoriteToggle(favId)
+        fav.classList.toggle('isOn', on)
+        fav.textContent = on ? '♥' : '♡'
+      })
+      const go = () => {
+        selectRecommendationTarget({
+          poiId: recPoiId,
+          name,
+          latlng: llAlt
         })
       }
+      b.addEventListener('click', (ev) => {
+        if ((ev.target as HTMLElement).closest('.favBtn')) return
+        go()
+      })
+      b.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          go()
+        }
+      })
       list.appendChild(b)
     }
+    refreshPoiMarkers()
   } catch {
-    list.innerHTML = '<p class="altEmpty">Nearby alternatives are unavailable right now.</p>'
+    list.innerHTML = '<p class="altEmpty">Suggestions unavailable right now. Try again in a moment.</p>'
+    refreshPoiMarkers()
   }
 }
 
+let lastSetChipPeekKey = '__init__'
+
 function setChip(selection: AppSelection | null) {
-  const dot = el<HTMLElement>('selectionChipDot')
-  const kindText = el<HTMLSpanElement>('selectionKindText')
-  const labelText = el<HTMLDivElement>('selectionLabelText')
-  const coordsText = el<HTMLSpanElement>('selectionCoordsText')
+  const peekKey = selection
+    ? `${selection.kind}|${selection.label}|${selection.latlng.lat.toFixed(4)}|${selection.latlng.lng.toFixed(4)}`
+    : 'null'
+  if (peekKey !== lastSetChipPeekKey) {
+    lastSetChipPeekKey = peekKey
+    document.getElementById('forecastSheetRoot')?.dispatchEvent(new Event('icc-forecast-peek-reset', { bubbles: false }))
+  }
+
   const forecastTitle = el<HTMLDivElement>('forecastTitleText')
   const forecastLevel = el<HTMLDivElement>('forecastLevelText')
   const forecastScore = el<HTMLSpanElement>('forecastScoreText')
+  const forecastTrend = el<HTMLDivElement>('forecastTrendText')
   const areaTrafficText = el<HTMLSpanElement>('areaTrafficText')
   const bestTimeText = el<HTMLSpanElement>('bestTimeText')
   const detailScreenLabel = el<HTMLParagraphElement>('detailScreenLabel')
@@ -459,92 +914,101 @@ function setChip(selection: AppSelection | null) {
   const openMapsBtnMobile = document.getElementById('openMapsBtnMobile') as HTMLButtonElement | null
   const forecastInterpretation = el<HTMLParagraphElement>('forecastInterpretation')
   const forecastCrowdLabel = el<HTMLDivElement>('forecastCrowdLabel')
-  const locationStatus = el<HTMLDivElement>('locationStatus')
+  const forecastBadgesEl = document.getElementById('forecastBadges')
 
   if (!selection) {
-    dot.style.background = 'transparent'
-    kindText.textContent = '—'
-    labelText.textContent = 'Search for a landmark or tap the map'
-    coordsText.textContent = '—'
-    forecastTitle.textContent = 'Select a place on the map or via search'
+    highlightedRecommendationPoiIds = new Set<string>()
+    recommendationLineTargets = []
+    refreshPoiMarkers()
+    forecastTitle.textContent = 'Tap the map or pick from search'
     forecastInterpretation.textContent = ''
-    forecastCrowdLabel.textContent = 'Expected crowd'
+    forecastCrowdLabel.textContent = 'Crowd outlook'
     forecastLevel.textContent = '—'
     forecastScore.textContent = '—'
+    forecastTrend.textContent = 'Awaiting selection…'
     areaTrafficText.textContent = '—'
     bestTimeText.textContent = '—'
-    detailScreenLabel.textContent = 'POI / place detail'
-    crowdedWarning.classList.remove('isCalm')
+    detailScreenLabel.textContent = 'Place'
     crowdedWarning.hidden = true
     alternativesBlock.hidden = true
     alternativesList.innerHTML = ''
+    if (forecastBadgesEl) forecastBadgesEl.innerHTML = ''
     openMapsBtn.disabled = true
     if (openMapsBtnMobile) openMapsBtnMobile.disabled = true
-    locationStatus.textContent = ''
     return
   }
 
+  if (selection.kind !== 'poi') {
+    highlightedRecommendationPoiIds = new Set<string>()
+    recommendationLineTargets = []
+  }
+  refreshPoiMarkers()
+
   openMapsBtn.disabled = false
   if (openMapsBtnMobile) openMapsBtnMobile.disabled = false
-  detailScreenLabel.textContent = selection.kind === 'poi' ? 'POI detail' : 'Place detail'
-  dot.style.background = dotColor(selection.kind)
-  kindText.textContent = kindLabel(selection.kind)
-  labelText.textContent = selection.label
-  coordsText.textContent = formatCoord(selection.latlng)
+  detailScreenLabel.textContent = selection.kind === 'poi' ? 'Landmark or place' : 'Place'
   forecastTitle.textContent = selection.label
   forecastLevel.textContent = '…'
   forecastScore.textContent = '…'
+  forecastTrend.textContent = 'Loading outlook…'
   areaTrafficText.textContent = '…'
   bestTimeText.textContent = '…'
   forecastInterpretation.textContent = ''
-  crowdedWarning.classList.remove('isCalm')
   crowdedWarning.hidden = true
   alternativesBlock.hidden = true
   alternativesList.innerHTML = ''
+  if (forecastBadgesEl) forecastBadgesEl.innerHTML = ''
 
-  const horizon = getHorizonWeeks()
-  const basisWeekStart = getSelectedForecastPeriod()
   forecast(
     {
       kind: selection.kind,
       label: selection.label,
       latlng: selection.latlng,
-      entityId: selection.entityId
+      ...(selection.entityId ? { entityId: selection.entityId } : {})
     },
-    horizon,
-    basisWeekStart
+    FORECAST_HORIZON_WEEKS,
+    currentForecastBasisWeekStart || undefined
   )
     .then((res) => {
       if (!currentSelection) return
       if (currentSelection.label !== selection.label || currentSelection.kind !== selection.kind) return
       forecastLevel.textContent = res.level
       forecastScore.textContent = String(res.score)
+      forecastTrend.textContent = res.trend
       const scope = res.forecastScope ?? 'demo'
-      const cityLevel = res.cityLevel ?? res.level
-      const cityScore = res.cityScore ?? res.score
-      const basisLabel = res.basisLabel?.trim()
-      const interpretation = res.interpretation?.trim() ?? ''
-      forecastInterpretation.textContent =
-        basisLabel && interpretation ? `${basisLabel}. ${interpretation}` : basisLabel || interpretation
-      forecastCrowdLabel.textContent = res.scoreLabel?.trim() || 'Expected crowd'
-      areaTrafficText.textContent =
-        scope === 'city_wide' ? `${cityLevel} across the city · ${cityScore}/100` : areaTrafficLevel(cityScore)
+      let interp = res.interpretation?.trim() ?? ''
+      if (res.basisWeekStart) {
+        const wk = `Outlook for the week starting ${res.basisWeekStart}.`
+        interp = interp ? `${interp} ${wk}` : wk
+      }
+      forecastInterpretation.textContent = interp
+
+      if (scope === 'city_wide') {
+        forecastCrowdLabel.textContent = 'This week in Istanbul'
+        areaTrafficText.textContent = `${res.level} (city-wide)`
+      } else {
+        forecastCrowdLabel.textContent = 'Estimated crowd'
+        areaTrafficText.textContent = areaTrafficLevel(res.score)
+      }
       bestTimeText.textContent = bestTimeHint(res.level)
-      locationStatus.textContent = basisLabel
-        ? `Using ${basisLabel.toLowerCase()} for the crowd view.`
-        : ''
+      if (forecastBadgesEl)
+        forecastBadgesEl.innerHTML = buildForecastBadgesHtml(res.level, selection)
       void fillAlternativesIfCrowded(selection, res.level, scope)
     })
     .catch(() => {
+      highlightedRecommendationPoiIds = new Set<string>()
+      recommendationLineTargets = []
+      refreshPoiMarkers()
       forecastLevel.textContent = '—'
       forecastScore.textContent = '—'
+      forecastTrend.textContent = 'Outlook unavailable—check your connection and try again.'
       areaTrafficText.textContent = '—'
       bestTimeText.textContent = '—'
-      forecastInterpretation.textContent = 'We could not load the current crowd read right now.'
+      forecastInterpretation.textContent = ''
+      if (forecastBadgesEl) forecastBadgesEl.innerHTML = ''
       crowdedWarning.hidden = true
       alternativesBlock.hidden = true
       alternativesList.innerHTML = ''
-      locationStatus.textContent = ''
     })
 }
 
@@ -555,19 +1019,74 @@ function clearResults(container: HTMLDivElement) {
   container.innerHTML = ''
 }
 
-function showEmpty(container: HTMLDivElement, text: string) {
+function showEmpty(container: HTMLDivElement, text: string, title?: string) {
+  showWarmEmpty(container, text, title)
+}
+
+function showWarmEmpty(container: HTMLDivElement, text: string, title = 'No matches yet') {
   clearResults(container)
   const row = document.createElement('div')
-  row.className = 'resultItem'
+  row.className = 'emptyState'
   row.style.cursor = 'default'
   row.innerHTML = `
-    <div class="resultBadge" style="opacity:0.7">Prototype</div>
-    <div class="resultMain">
-      <div class="resultName">No matches</div>
-      <div class="resultMeta">${text}</div>
-    </div>
+    <div class="emptyState__art" aria-hidden="true">✦</div>
+    <div class="emptyState__title">${escapeHtml(title)}</div>
+    <div class="emptyState__body">${escapeHtml(text)}</div>
   `
   container.appendChild(row)
+}
+
+function rankedRowPhotoUrl(rec: RankedRecommendation): string | undefined {
+  const r = rec as Record<string, unknown>
+  const direct =
+    (typeof r.photo_url === 'string' && r.photo_url.trim()) ||
+    (typeof r.photoUrl === 'string' && r.photoUrl.trim())
+  if (direct) return direct
+  const pid = r.poi_id != null ? String(r.poi_id) : ''
+  return pid ? thumbUrlForPoiId(pid) : undefined
+}
+
+/** Alternative row thumbnail (Google proxy when coords exist, else photo or gradient + glyph). */
+function altCardThumbBlock(opts: {
+  photoUrl?: string
+  placeName: string
+  lat?: number
+  lng?: number
+  gradientCss: string
+  iconHtml: string
+}): string {
+  const lat = opts.lat
+  const lng = opts.lng
+  const hasCoords =
+    typeof lat === 'number' &&
+    typeof lng === 'number' &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng)
+  const nm = opts.placeName.trim()
+  const useProxy = Boolean(nm && hasCoords)
+  const photoUrl = opts.photoUrl?.trim()
+  const fbHttps = photoUrl?.startsWith('https://') ? photoUrl : undefined
+
+  if (useProxy) {
+    const proxyEsc = escapeHtml(
+      placePhotoProxyUrl({
+        name: nm,
+        lat,
+        lng,
+        fallbackUrl: fbHttps
+      })
+    )
+    const bgEsc = escapeHtml(opts.gradientCss)
+    const dataFb = fbHttps ? ` data-fallback="${escapeHtml(fbHttps)}"` : ''
+    const onerr = fbHttps
+      ? ` onerror="this.onerror=null;if(this.dataset.fallback){this.src=this.dataset.fallback;this.removeAttribute('data-fallback');return;}this.remove()"`
+      : ` onerror="this.remove()"`
+    return `<div class="altCard__thumb altCard__thumb--photo" style="background:${bgEsc}"><span class="altCard__ic" aria-hidden="true">${opts.iconHtml}</span><img class="altCard__img" src="${proxyEsc}" alt="" loading="lazy" decoding="async"${dataFb}${onerr} /></div>`
+  }
+  if (photoUrl) {
+    return `<div class="altCard__thumb altCard__thumb--photo"><img class="altCard__img" src="${escapeHtml(photoUrl)}" alt="" loading="lazy" decoding="async" /></div>`
+  }
+  return `<div class="altCard__thumb" style="background:${escapeHtml(opts.gradientCss)}"><span class="altCard__ic" aria-hidden="true">${opts.iconHtml}</span></div>`
 }
 
 function pickLatLngFromRankedRec(rec: RankedRecommendation): LatLng | null {
@@ -586,9 +1105,10 @@ function pickLatLngFromRankedRec(rec: RankedRecommendation): LatLng | null {
   return { lat, lng }
 }
 
-function makeRankedRecommendationRow(rec: RankedRecommendation): HTMLElement {
+function makeRankedRecommendationRow(rec: RankedRecommendation, index = 0): HTMLElement {
   const row = document.createElement('div')
-  row.className = 'resultItem'
+  row.className = 'richResult richResult--rise richResult--rank'
+  row.style.setProperty('--i', String(index))
   row.setAttribute('role', 'option')
   row.tabIndex = 0
 
@@ -600,175 +1120,278 @@ function makeRankedRecommendationRow(rec: RankedRecommendation): HTMLElement {
         ? `${Math.round(dist * 1000)} m`
         : `${dist.toFixed(1)} km`
       : '—'
-  const cat = String(rec.category ?? '')
+  const cat = recommendationDisplayCategory(rec)
   const crowd = String(rec.crowd_level_label ?? '')
   const expl = String(rec.explanation ?? rec.explanation_text ?? '')
-  const score = rec.score
+  const llRec = pickLatLngFromRankedRec(rec)
+  const recPoiId =
+    rec.poi_id != null && String(rec.poi_id).trim()
+      ? String(rec.poi_id).trim()
+      : null
+  const matchedPoi = recPoiId ? allPoisForMap.find((poi) => poi.id === recPoiId) : null
+  const enrichedRec = {
+    ...rec,
+    ...(matchedPoi ? { tags: matchedPoi.tags, category: poiDisplayCategory(matchedPoi) } : {})
+  } as RankedRecommendation
+  const badges = recommendationMicroBadges(enrichedRec)
+    .map((t) => `<span class="microBadge">${escapeHtml(t)}</span>`)
+    .join('')
+  const dot = crowdDotClass(crowd || 'Medium')
+  const whyLine = recommendationWhyLine(enrichedRec)
+  const favId = `rec:${String(rec.poi_id ?? name)}`
+  const favOn = favoriteHas(favId)
 
-  const badge = document.createElement('div')
-  badge.className = 'resultBadge'
-  badge.textContent = 'Ranked'
+  row.innerHTML = `
+    <div class="richBody">
+      <div class="richTop">
+        <span class="crowdDot ${dot}" aria-hidden="true"></span>
+        <span class="richKind">Nearby</span>
+        <span class="microAi">For you</span>
+        <button type="button" class="favBtn ${favOn ? 'isOn' : ''}" aria-label="Save place">${favOn ? '♥' : '♡'}</button>
+      </div>
+      <div class="richName">${escapeHtml(name)}</div>
+      <div class="richMeta">${escapeHtml(cat)} · ${escapeHtml(distStr)}${crowd ? ` · ${escapeHtml(crowd)}` : ''}</div>
+      <div class="microBadgeRow">${badges}</div>
+      <div class="bestTimeMini"><span>Why this works</span> ${escapeHtml(whyLine)}</div>
+      ${expl.trim() ? `<div class="richExpl">${escapeHtml(expl)}</div>` : ''}
+    </div>`
 
-  const main = document.createElement('div')
-  main.className = 'resultMain'
-  const title = document.createElement('div')
-  title.className = 'resultName'
-  title.textContent = name
-  const meta = document.createElement('div')
-  meta.className = 'resultMeta'
-  const metaBits = [cat, distStr, crowd ? `crowd ${crowd}` : '', typeof score === 'number' ? `score ${score.toFixed(3)}` : '']
-  meta.textContent = metaBits.filter(Boolean).join(' · ')
-  main.appendChild(title)
-  main.appendChild(meta)
-  if (expl.trim()) {
-    const detail = document.createElement('div')
-    detail.className = 'resultMeta'
-    detail.style.marginTop = '6px'
-    detail.style.fontSize = '0.9em'
-    detail.style.opacity = '0.95'
-    detail.textContent = expl
-    main.appendChild(detail)
-  }
+  const fav = row.querySelector('.favBtn')
+  fav?.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const on = favoriteToggle(favId)
+    fav.classList.toggle('isOn', on)
+    fav.textContent = on ? '♥' : '♡'
+  })
 
-  row.appendChild(badge)
-  row.appendChild(main)
-
-  const ll = pickLatLngFromRankedRec(rec)
-  if (ll) {
-    row.addEventListener('click', () => {
-      const sel: MapSelection = { latlng: ll, label: name, kind: 'location' }
-      currentSelection = sel
-      setChip(sel)
-      map.setMarker(sel, { flyTo: true })
+  const go = () => {
+    selectRecommendationTarget({
+      poiId: recPoiId,
+      name,
+      latlng: llRec
     })
-    row.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        const sel: MapSelection = { latlng: ll, label: name, kind: 'location' }
-        currentSelection = sel
-        setChip(sel)
-        map.setMarker(sel, { flyTo: true })
-      }
-    })
   }
+  row.addEventListener('click', (ev) => {
+    if ((ev.target as HTMLElement).closest('.favBtn')) return
+    go()
+  })
+  row.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      go()
+    }
+  })
 
   return row
 }
 
+function fillNearbyRecommendationsPanel(origin: LatLng, cat: string) {
+  clearResults(globalSearchResults)
+  const recs = rankLocalPoisNear(origin, cat, 10)
+  if (recs.length === 0) {
+    showEmpty(
+      globalSearchResults,
+      'Nothing matched that category—set Category to “All categories” or search above.',
+      'Nothing nearby'
+    )
+    return
+  }
+  recs.forEach((rec, i) => {
+    globalSearchResults.appendChild(makeRankedRecommendationRow(rec as RankedRecommendation, i))
+  })
+}
+
+function scrollNearbyResultsIntoView() {
+  document.querySelector('.card--search')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+
 async function showNearbyMatches(origin: LatLng) {
-  setLoading(globalSearchResults)
+  setSkeletonResults(globalSearchResults)
   const cat = getCategoryFilter()
   try {
     const data = await fetchRecommendations({
       origin,
-      timestamp: getModeledTimestampIso(),
-      radiusKm: 5,
+      timestamp: getRecommendationTimestampISO(),
+      radiusKm: 12,
       topK: 10,
       includeItinerary: false,
       ...(cat ? { allowedCategories: [cat] } : {})
     })
     clearResults(globalSearchResults)
-    const recs = data.recommendations
+    const recs = data.recommendations.filter((rec) => {
+      const poiId =
+        rec.poi_id != null && String(rec.poi_id).trim()
+          ? String(rec.poi_id).trim()
+          : null
+      return poiId ? allPoisForMap.some((poi) => poi.id === poiId) : false
+    })
     if (recs.length === 0) {
-      showEmpty(
-        globalSearchResults,
-        'No ranked POIs for this area—try another category or use search.'
-      )
-      return
-    }
-    for (const rec of recs) {
-      globalSearchResults.appendChild(makeRankedRecommendationRow(rec))
+      fillNearbyRecommendationsPanel(origin, cat)
+    } else {
+      recs.forEach((rec, i) => {
+        globalSearchResults.appendChild(makeRankedRecommendationRow(rec as RankedRecommendation, i))
+      })
     }
   } catch {
-    showEmpty(
-      globalSearchResults,
-      'Could not load ranked POIs. Start the Flask API on port 8080 (backend-python).'
-    )
+    fillNearbyRecommendationsPanel(origin, cat)
   }
+  scrollNearbyResultsIntoView()
 }
 
-function setLoading(container: HTMLDivElement) {
+function setSkeletonResults(container: HTMLDivElement, rows = 5) {
   clearResults(container)
-  const row = document.createElement('div')
-  row.className = 'resultItem'
-  row.style.cursor = 'default'
-  row.innerHTML = `
-    <div class="resultBadge" style="opacity:0.8">Loading</div>
-    <div class="resultMain">
-      <div class="resultName">Searching Istanbul…</div>
-      <div class="resultMeta">Calling /api/recommendations…</div>
-    </div>
-  `
-  container.appendChild(row)
+  const frag = document.createDocumentFragment()
+  for (let i = 0; i < rows; i++) {
+    const d = document.createElement('div')
+    d.className = 'skelRow'
+    d.style.setProperty('--i', String(i))
+    d.innerHTML = `
+      <div class="skelBody">
+        <div class="skelLine skelLine--lg skelShimmer"></div>
+        <div class="skelLine skelLine--sm skelShimmer"></div>
+        <div class="skelLine skelLine--sm skelShimmer" style="width:55%"></div>
+      </div>`
+    frag.appendChild(d)
+  }
+  container.appendChild(frag)
 }
 
-function makePoiRow(poi: Poi): HTMLElement {
+function makeHotelRow(hotel: Hotel, index = 0): HTMLElement {
   const row = document.createElement('div')
-  row.className = 'resultItem'
+  row.className = 'richResult richResult--rise'
+  row.style.setProperty('--i', String(index))
+  row.setAttribute('role', 'option')
+  row.tabIndex = 0
+  row.dataset.id = hotel.id
+
+  const favOn = favoriteHas(`hotel:${hotel.id}`)
+  const micro = hotelCardBadges(hotel).map((t) => `<span class="microBadge">${escapeHtml(t)}</span>`).join('')
+
+  row.innerHTML = `
+    <div class="richBody">
+      <div class="richTop">
+        <span class="richKind">Hotel</span>
+        <button type="button" class="favBtn ${favOn ? 'isOn' : ''}" aria-label="Save hotel">${favOn ? '♥' : '♡'}</button>
+      </div>
+      <div class="richName">${escapeHtml(hotel.name)}</div>
+      <div class="richMeta">${escapeHtml(hotel.district)} · ${hotel.rating.toFixed(1)}★ · from $${hotel.priceFrom}</div>
+      <div class="microBadgeRow">${micro}</div>
+    </div>`
+
+  const fav = row.querySelector('.favBtn')
+  fav?.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const on = favoriteToggle(`hotel:${hotel.id}`)
+    fav.classList.toggle('isOn', on)
+    fav.textContent = on ? '♥' : '♡'
+  })
+
+  const pick = () => {
+    selectHotel(hotel)
+  }
+  row.addEventListener('click', (ev) => {
+    if ((ev.target as HTMLElement).closest('.favBtn')) return
+    pick()
+  })
+  row.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      pick()
+    }
+  })
+  return row
+}
+
+function makePoiRow(poi: Poi, index = 0): HTMLElement {
+  const row = document.createElement('div')
+  row.className = 'richResult richResult--rise'
+  row.style.setProperty('--i', String(index))
   row.setAttribute('role', 'option')
   row.tabIndex = 0
   row.dataset.id = poi.id
 
-  row.innerHTML = `
-    <div class="resultBadge">POI</div>
-    <div class="resultMain">
-      <div class="resultName">${poi.name}</div>
-      <div class="resultMeta">${poi.category}</div>
-    </div>
-  `
+  const favOn = favoriteHas(`poi:${poi.id}`)
+  const micro = poiCardBadges(poi).map((t) => `<span class="microBadge">${escapeHtml(t)}</span>`).join('')
+  const displayCategory = poiDisplayCategory(poi)
+  const rawCategory = poi.category.trim()
+  const metaText =
+    rawCategory && rawCategory !== displayCategory
+      ? `${displayCategory} · ${rawCategory}`
+      : displayCategory
 
-  row.addEventListener('click', () => selectPoi(poi))
+  row.innerHTML = `
+    <div class="richBody">
+      <div class="richTop">
+        <span class="richKind">Sight</span>
+        <button type="button" class="favBtn ${favOn ? 'isOn' : ''}" aria-label="Save place">${favOn ? '♥' : '♡'}</button>
+      </div>
+      <div class="richName">${escapeHtml(poi.name)}</div>
+      <div class="richMeta">${escapeHtml(metaText)}</div>
+      <div class="microBadgeRow">${micro}</div>
+    </div>`
+
+  const fav = row.querySelector('.favBtn')
+  fav?.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const on = favoriteToggle(`poi:${poi.id}`)
+    fav.classList.toggle('isOn', on)
+    fav.textContent = on ? '♥' : '♡'
+  })
+
+  const pick = () => {
+    selectPoi(poi)
+  }
+  row.addEventListener('click', (ev) => {
+    if ((ev.target as HTMLElement).closest('.favBtn')) return
+    pick()
+  })
   row.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') selectPoi(poi)
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      pick()
+    }
   })
   return row
 }
 
 let currentSelection: AppSelection | null = null
-let defaultMapPois: Poi[] = []
-let forecastPeriods: ForecastPeriodOption[] = []
+
+function clearCurrentSelection(): void {
+  currentSelection = null
+  highlightedRecommendationPoiIds = new Set<string>()
+  recommendationLineTargets = []
+  map.clearSelection()
+  setChip(null)
+}
 
 const map = createMap(el<HTMLDivElement>('map'), {
   defaultCenter: DEFAULT_CENTER,
   onSelect: (selection) => {
+    if (selection.kind === 'map') {
+      if (currentSelection) clearCurrentSelection()
+      return
+    }
     currentSelection = selection
     setChip(currentSelection)
   }
 })
 
-function filteredMapPois(): Poi[] {
-  const cat = getCategoryFilter()
-  const visible = cat ? defaultMapPois.filter((poi) => poi.category === cat) : defaultMapPois
-  return visible.slice(0, 80)
-}
-
-function renderDefaultPoiMarkers() {
-  const pois = filteredMapPois()
-  map.setPoiMarkers(
-    pois.map((poi) => ({
-      id: poi.id,
-      name: poi.name,
-      category: poi.category,
-      lat: poi.lat,
-      lng: poi.lng
-    })),
-    (poiId) => {
-      const poi = defaultMapPois.find((item) => item.id === poiId)
-      if (poi) selectPoi(poi)
-    }
-  )
-}
-
-async function loadDefaultPoiMarkers() {
-  try {
-    defaultMapPois = await listPois(80)
-    renderDefaultPoiMarkers()
-  } catch {
-    defaultMapPois = []
-    renderDefaultPoiMarkers()
+function selectHotel(hotel: Hotel) {
+  recentSearchesAdd(hotel.name)
+  resetSearchPanelToDiscovery()
+  currentSelection = {
+    latlng: { lat: hotel.lat, lng: hotel.lng },
+    label: hotel.name,
+    kind: 'hotel',
+    entityId: hotel.id
   }
+  setChip(currentSelection)
+  map.setMarker(currentSelection, { flyTo: true })
 }
 
 function selectPoi(poi: Poi) {
+  recentSearchesAdd(poi.name)
+  resetSearchPanelToDiscovery()
   currentSelection = {
     latlng: { lat: poi.lat, lng: poi.lng },
     label: poi.name,
@@ -779,6 +1402,20 @@ function selectPoi(poi: Poi) {
   map.setMarker(currentSelection, { flyTo: true })
 }
 
+function selectRecommendationTarget(target: {
+  poiId?: string | null
+  name: string
+  latlng?: LatLng | null
+}) {
+  const pid = target.poiId?.trim()
+  if (!pid) return
+  const poi = allPoisForMap.find((p) => p.id === pid)
+  if (poi) {
+    selectPoi(poi)
+    return
+  }
+}
+
 function debounce<T extends unknown[]>(fn: (...args: T) => void, ms: number) {
   let timer: number | null = null
   return (...args: T) => {
@@ -787,55 +1424,59 @@ function debounce<T extends unknown[]>(fn: (...args: T) => void, ms: number) {
   }
 }
 
+function findExplorerPoiMatch(landmark: ExplorerLandmark): Poi | null {
+  if (!allPoisForMap.length) return null
+
+  const normalizedAliases = [
+    landmark.name,
+    ...(EXPLORER_POI_NAME_ALIASES[landmark.id] ?? [])
+  ].map(normalizePlaceName)
+
+  for (const alias of normalizedAliases) {
+    const exact = allPoisForMap.find((poi) => normalizePlaceName(poi.name) === alias)
+    if (exact) return exact
+  }
+
+  return null
+}
+
+function focusExplorerLandmark(landmark: ExplorerLandmark): void {
+  const target = { lat: landmark.lat, lng: landmark.lng }
+  const mappedPoi = findExplorerPoiMatch(landmark)
+
+  if (mappedPoi) {
+    selectPoi(mappedPoi)
+    return
+  }
+
+  recentSearchesAdd(landmark.name)
+  resetSearchPanelToDiscovery()
+
+  currentSelection = {
+    latlng: target,
+    label: landmark.name,
+    kind: 'map'
+  }
+  setChip(currentSelection)
+  map.setMarker(currentSelection, { flyTo: true })
+}
+
 globalSearchInput.addEventListener('input', () => {
   debouncedGlobalSearch(globalSearchInput.value)
 })
 
 const debouncedGlobalSearch = debounce((query: string) => {
-  setLoading(globalSearchResults)
-  searchEverything(query)
-    .then((items) => {
-      clearResults(globalSearchResults)
-      const filtered = applyCategoryToSearchResults(items)
-      if (filtered.length === 0) {
-        showEmpty(
-          globalSearchResults,
-          items.length === 0
-            ? 'Try “Hagia Sophia”, “Grand Bazaar”, or a district name.'
-            : 'No matches for this category—set category to “All categories”.'
-        )
-        return
-      }
-      for (const item of filtered) {
-        if (item.kind === 'poi') globalSearchResults.appendChild(makePoiRow(item.poi))
-      }
-    })
-    .catch(() => showEmpty(globalSearchResults, 'Search failed. Reload the page.'))
-}, 220)
+  void execGlobalSearch(query, globalSearchResults)
+}, 140)
 
 globalSearchInput.addEventListener('focus', () => {
   if (!globalSearchInput.value.trim()) {
-    setLoading(globalSearchResults)
-    searchEverything('')
-      .then((items) => {
-        clearResults(globalSearchResults)
-        const filtered = applyCategoryToSearchResults(items)
-        if (filtered.length === 0) {
-          showEmpty(globalSearchResults, 'No matches for this category—set category to “All categories”.')
-          return
-        }
-        for (const item of filtered) {
-          if (item.kind === 'poi') globalSearchResults.appendChild(makePoiRow(item.poi))
-        }
-      })
-      .catch(() => showEmpty(globalSearchResults, 'Suggestions failed.'))
+    renderDiscoveryPanel(globalSearchResults)
   }
 })
 
 const locationStatus = el<HTMLDivElement>('locationStatus')
 const useMyLocationBtn = el<HTMLButtonElement>('useMyLocationBtn')
-const filterCategory = el<HTMLSelectElement>('filterCategory')
-const forecastPeriod = el<HTMLSelectElement>('forecastPeriod')
 
 function startGeolocation(statusEl: HTMLElement) {
   statusEl.textContent = ''
@@ -858,12 +1499,11 @@ function startGeolocation(statusEl: HTMLElement) {
       setChip(currentSelection)
       map.setMarker(currentSelection, { flyTo: true })
       void showNearbyMatches(selection.latlng)
-      statusEl.textContent =
-        'Location set on the Istanbul map. Tap the map to fine-tune or search for a POI.'
+      statusEl.textContent = ''
     },
     () => {
       statusEl.textContent =
-        'Location unavailable or denied—you can still use search or tap the map.'
+        'Location unavailable or denied—you can still use search or click a POI on the map.'
     },
     { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
   )
@@ -873,14 +1513,94 @@ useMyLocationBtn.addEventListener('click', () => startGeolocation(locationStatus
 
 function onFilterChange() {
   debouncedGlobalSearch(globalSearchInput.value)
-  renderDefaultPoiMarkers()
+  refreshPoiMarkers()
   if (currentSelection) setChip(currentSelection)
+  if (currentSelection?.kind === 'location') {
+    void showNearbyMatches(currentSelection.latlng)
+  }
 }
 
-filterCategory.addEventListener('change', onFilterChange)
-forecastPeriod.addEventListener('change', () => {
-  if (currentSelection) setChip(currentSelection)
-})
+function wireCategoryBubbles() {
+  const buttons = document.querySelectorAll<HTMLButtonElement>('.categoryBubble')
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('isActive')) return
+      buttons.forEach((b) => {
+        const on = b === btn
+        b.classList.toggle('isActive', on)
+        b.setAttribute('aria-pressed', String(on))
+      })
+      onFilterChange()
+    })
+  })
+}
+
+wireCategoryBubbles()
+renderDiscoveryPanel(globalSearchResults)
+
+async function initForecastPeriods(): Promise<void> {
+  const select = document.getElementById('forecastPeriodSelect') as HTMLSelectElement | null
+  if (!select) return
+
+  try {
+    const periods = await listForecastPeriods()
+    const options = periods
+      .map((period: ForecastPeriodOption) => {
+        const label = `${period.label} · ${period.level}`
+        return `<option value="${escapeHtml(period.id)}">${escapeHtml(label)}</option>`
+      })
+      .join('')
+    select.insertAdjacentHTML('beforeend', options)
+  } catch {
+    // Keep the default "latest modeled week" option when the endpoint is unavailable.
+  }
+
+  select.addEventListener('change', () => {
+    currentForecastBasisWeekStart = select.value.trim()
+    void refreshPoiCrowdLevels()
+    if (currentSelection) setChip(currentSelection)
+  })
+}
+
+void initForecastPeriods()
+
+async function initPoiMarkers(): Promise<void> {
+  try {
+    allPoisForMap = await listPois(300)
+    refreshPoiMarkers()
+    void refreshPoiCrowdLevels()
+  } catch {
+    allPoisForMap = []
+    refreshPoiMarkers()
+  }
+}
+
+void initPoiMarkers()
+
+function wireVisitCalendar(): void {
+  const prev = document.getElementById('visitCalPrev')
+  const next = document.getElementById('visitCalNext')
+  const clear = document.getElementById('visitCalClear')
+  const hidden = document.getElementById('visitDatePicker') as HTMLInputElement | null
+
+  prev?.addEventListener('click', () => {
+    visitCalView = new Date(visitCalView.getFullYear(), visitCalView.getMonth() - 1, 1)
+    clampVisitCalViewToRange()
+    renderVisitCalendar()
+  })
+  next?.addEventListener('click', () => {
+    visitCalView = new Date(visitCalView.getFullYear(), visitCalView.getMonth() + 1, 1)
+    clampVisitCalViewToRange()
+    renderVisitCalendar()
+  })
+  clear?.addEventListener('click', () => {
+    if (hidden) hidden.value = ''
+    renderVisitCalendar()
+    onFilterChange()
+  })
+}
+
+wireVisitCalendar()
 
 function wireOpenMapsButton(btn: HTMLButtonElement) {
   btn.addEventListener('click', () => {
@@ -901,19 +1621,31 @@ function initForecastSheetCollapse() {
   if (!sheetRoot || !sheetToggle || !mapStage) return
 
   const mq = window.matchMedia('(max-width: 768px)')
-  let collapsed = mq.matches
+  let collapsed = false
+  let desktopCollapsed = false
   const SWIPE_PX = 52
   let ignoreNextToggleClick = false
+
+  const syncDesktopState = () => {
+    sheetRoot.classList.toggle('isDesktopCollapsed', desktopCollapsed)
+    sheetToggle.setAttribute('aria-expanded', String(!desktopCollapsed))
+    sheetToggle.setAttribute(
+      'aria-label',
+      desktopCollapsed ? 'Open place detail' : 'Close place detail'
+    )
+  }
 
   const sync = () => {
     if (!mq.matches) {
       collapsed = false
       sheetRoot.classList.remove('isCollapsed')
       mapStage.classList.remove('hasCollapsedSheet')
-      sheetToggle.setAttribute('aria-expanded', 'true')
-      sheetToggle.setAttribute('aria-label', 'Collapse place detail')
+      sheetRoot.classList.add('forecastSheet--peek')
+      syncDesktopState()
       return
     }
+    desktopCollapsed = true
+    sheetRoot.classList.remove('isDesktopCollapsed')
     sheetRoot.classList.toggle('isCollapsed', collapsed)
     mapStage.classList.toggle('hasCollapsedSheet', collapsed)
     sheetToggle.setAttribute('aria-expanded', String(!collapsed))
@@ -923,7 +1655,12 @@ function initForecastSheetCollapse() {
   const applyResize = () => window.dispatchEvent(new Event('resize'))
 
   sheetToggle.addEventListener('click', () => {
-    if (!mq.matches) return
+    if (!mq.matches) {
+      desktopCollapsed = !desktopCollapsed
+      syncDesktopState()
+      applyResize()
+      return
+    }
     if (ignoreNextToggleClick) {
       ignoreNextToggleClick = false
       return
@@ -990,42 +1727,64 @@ function initForecastSheetCollapse() {
     t.addEventListener('pointercancel', endSwipe)
   }
 
-  mq.addEventListener('change', sync)
+  mq.addEventListener('change', () => {
+    collapsed = false
+    desktopCollapsed = false
+    sync()
+  })
   sync()
 }
 
-function renderForecastPeriods() {
-  forecastPeriod.innerHTML = ''
-
-  const latestOption = document.createElement('option')
-  latestOption.value = ''
-  latestOption.textContent = 'Latest modeled week'
-  forecastPeriod.appendChild(latestOption)
-
-  for (const option of forecastPeriods) {
-    const node = document.createElement('option')
-    node.value = option.id
-    node.textContent = `${option.label} · ${option.level}`
-    forecastPeriod.appendChild(node)
-  }
-}
-
-async function loadForecastPeriods() {
-  try {
-    forecastPeriods = await listForecastPeriods()
-  } catch {
-    forecastPeriods = []
-  }
-  renderForecastPeriods()
-}
-
 initForecastSheetCollapse()
-void loadForecastPeriods()
-void loadDefaultPoiMarkers()
+
+function initPageEnter() {
+  requestAnimationFrame(() => {
+    const page = document.querySelector('.page--premium')
+    page?.classList.add('page--mounted', 'page--unveil')
+  })
+}
+
+initPageEnter()
+void import('./features/istanbulExplorer/mount').then(({ mountIstanbulExplorer }) => {
+  mountIstanbulExplorer((poi) => {
+    focusExplorerLandmark({
+      id: poi.id,
+      name: poi.name,
+      lat: poi.lat,
+      lng: poi.lng
+    })
+  })
+})
 
 // Ask for location permission right away (for “open app → GPS → recommendations” flow).
 // If denied, the user can still search or tap the map.
 window.setTimeout(() => {
   startGeolocation(locationStatus)
 }, 160)
+syncVisitDatePickerBounds()
 setChip(null)
+
+function initMapFullscreen() {
+  const btn = document.getElementById('mapFullscreenBtn')
+  const stage = document.getElementById('mapStage')
+  if (!btn || !stage) return
+  btn.addEventListener('click', () => {
+    const on = stage.classList.toggle('mapStage--fullscreen')
+    document.body.classList.toggle('body--map-fs', on)
+    btn.setAttribute('aria-pressed', String(on))
+    map.relayout()
+    window.setTimeout(() => map.relayout(), 320)
+  })
+}
+
+function initMobileDock() {
+  document.getElementById('dockExplore')?.addEventListener('click', () => {
+    document.getElementById('explorePanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+  document.getElementById('dockMap')?.addEventListener('click', () => {
+    document.getElementById('mapStage')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+}
+
+initMapFullscreen()
+initMobileDock()

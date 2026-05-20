@@ -121,6 +121,37 @@ def _includes(haystack: str | None, query: str) -> bool:
     return haystack is not None and query in haystack.lower()
 
 
+def _poi_search_score(poi: dict[str, Any], query: str) -> float:
+    q = _normalize(query)
+    if not q:
+        return 0.0
+
+    name = _normalize(str(poi.get("name", "") or ""))
+    category = _normalize(str(poi.get("category", "") or ""))
+    ux_category = _normalize(str(poi.get("uxCategory", "") or ""))
+    blurb = _normalize(str(poi.get("blurb", "") or ""))
+    map_eligible = bool(poi.get("mapEligible", True))
+
+    score = 0.0
+    if name == q:
+        score += 1000.0
+    if name.startswith(q):
+        score += 700.0
+    if f" {q}" in f" {name}":
+        score += 420.0
+    if q in name:
+        score += 260.0
+    if q in category:
+        score += 80.0
+    if q in ux_category:
+        score += 110.0
+    if q in blurb:
+        score += 45.0
+    if map_eligible:
+        score += 120.0
+    return score
+
+
 def _choose_poi_dataset() -> Path | None:
     if REAL_POI_DATASET.is_file():
         return REAL_POI_DATASET
@@ -141,6 +172,164 @@ def _poi_blurb(row: pd.Series) -> str:
     elif kinds:
         parts.append(kinds.split(",")[0].replace("_", " "))
     return " · ".join(parts) if parts else "Istanbul point of interest."
+
+
+def _flag_on(row: pd.Series, key: str) -> bool:
+    value = pd.to_numeric(row.get(key), errors="coerce")
+    if pd.isna(value):
+        return False
+    return int(value) == 1
+
+
+def _is_map_eligible(row: pd.Series) -> bool:
+    name = str(row.get("name", "") or "").strip().lower()
+    display_name = str(row.get("display_name_en", "") or "").strip().lower()
+    combined = f"{name} {display_name}"
+
+    noisy_keywords = (
+        "metro",
+        "station",
+        "istasyonu",
+        "tram",
+        "funicular",
+        "teleferik",
+        "ferry terminal",
+        "iskele",
+        "pier",
+        "tiyat",
+        "theatre",
+        "theater",
+        "stage",
+        "opera house",
+        "concert hall",
+        "arena",
+        "cinema",
+        "sinem",
+        "kahvesi",
+        "radio house",
+    )
+    if any(token in combined for token in noisy_keywords):
+        return False
+
+    family_flags = (
+        "family_iconic_landmark",
+        "family_religious_monumental",
+        "family_museum_cultural",
+        "family_viewpoint_scenic",
+        "family_palatial_imperial",
+        "family_neighborhood_heritage",
+    )
+    if any(_flag_on(row, key) for key in family_flags):
+        return True
+
+    subtype_flags = (
+        "is_mosque",
+        "is_church",
+        "is_synagogue",
+        "is_cathedral",
+        "is_palace",
+        "is_museum",
+        "is_monument",
+        "is_fortress",
+        "is_tower",
+        "is_hamam",
+        "is_bridge",
+        "is_tomb",
+        "is_fountain",
+        "is_gate",
+    )
+    return any(_flag_on(row, key) for key in subtype_flags)
+
+
+def _derive_ux_category(row: pd.Series) -> str:
+    if _flag_on(row, "family_museum_cultural") or _flag_on(row, "is_museum"):
+        return "Museum"
+    if _flag_on(row, "family_palatial_imperial") or _flag_on(row, "is_palace"):
+        return "Palace"
+    if _flag_on(row, "family_viewpoint_scenic"):
+        return "Viewpoint"
+    if any(
+        _flag_on(row, key)
+        for key in (
+            "family_religious_monumental",
+            "is_mosque",
+            "is_church",
+            "is_synagogue",
+            "is_cathedral",
+            "is_tomb",
+        )
+    ):
+        return "Religious"
+    if any(
+        _flag_on(row, key)
+        for key in (
+            "family_iconic_landmark",
+            "is_monument",
+            "is_fortress",
+            "is_tower",
+            "is_bridge",
+            "is_gate",
+        )
+    ):
+        return "Landmark"
+    if any(
+        _flag_on(row, key)
+        for key in (
+            "family_neighborhood_heritage",
+            "is_hamam",
+            "is_fountain",
+        )
+    ):
+        return "Heritage"
+    return "Landmark"
+
+
+def _derive_poi_tags(row: pd.Series) -> list[str]:
+    tags: list[str] = []
+
+    if _flag_on(row, "family_iconic_landmark"):
+        tags.append("Iconic")
+    if _flag_on(row, "family_religious_monumental"):
+        tags.append("Religious")
+    if _flag_on(row, "family_museum_cultural") or _flag_on(row, "is_museum"):
+        tags.append("Museum")
+    if _flag_on(row, "family_viewpoint_scenic"):
+        tags.append("Scenic")
+    if _flag_on(row, "family_palatial_imperial") or _flag_on(row, "is_palace"):
+        tags.append("Palatial")
+    if _flag_on(row, "family_neighborhood_heritage"):
+        tags.append("Heritage")
+
+    if _flag_on(row, "is_mosque"):
+        tags.append("Mosque")
+    elif _flag_on(row, "is_church"):
+        tags.append("Church")
+    elif _flag_on(row, "is_synagogue"):
+        tags.append("Synagogue")
+    elif _flag_on(row, "is_cathedral"):
+        tags.append("Cathedral")
+    elif _flag_on(row, "is_tower"):
+        tags.append("Tower")
+    elif _flag_on(row, "is_fortress"):
+        tags.append("Fortress")
+    elif _flag_on(row, "is_bridge"):
+        tags.append("Bridge")
+    elif _flag_on(row, "is_hamam"):
+        tags.append("Hamam")
+    elif _flag_on(row, "is_gate"):
+        tags.append("Gate")
+    elif _flag_on(row, "is_fountain"):
+        tags.append("Fountain")
+    elif _flag_on(row, "is_tomb"):
+        tags.append("Tomb")
+    elif _flag_on(row, "is_monument"):
+        tags.append("Monument")
+
+    out: list[str] = []
+    for tag in tags:
+        if tag and tag not in out:
+            out.append(tag)
+    return out[:4]
 
 
 def _poi_record(row: pd.Series) -> dict[str, Any] | None:
@@ -170,9 +359,12 @@ def _poi_record(row: pd.Series) -> dict[str, Any] | None:
         "id": poi_id,
         "name": name,
         "category": category_label,
+        "uxCategory": _derive_ux_category(row),
+        "tags": _derive_poi_tags(row),
         "lat": float(lat),
         "lng": float(lon),
         "blurb": _poi_blurb(row),
+        "mapEligible": _is_map_eligible(row),
     }
 
 
@@ -234,15 +426,23 @@ def search_pois(query: str, limit: int) -> list[dict[str, Any]]:
     lim = max(1, limit)
     pois = _real_pois()
     if not q:
-        return pois[:lim]
-    out: list[dict[str, Any]] = []
-    for p in pois:
-        hay = f'{p["name"]} {p["category"]} {p["blurb"]}'
-        if _includes(hay, q):
-            out.append(p)
-            if len(out) >= lim:
-                break
-    return out
+        ranked = sorted(pois, key=lambda p: (not bool(p.get("mapEligible", True)), p["name"]))
+        return ranked[:lim]
+
+    matches = [
+        p
+        for p in pois
+        if _includes(f'{p["name"]} {p["category"]} {p.get("uxCategory", "")} {p["blurb"]}', q)
+    ]
+    ranked = sorted(
+        matches,
+        key=lambda p: (
+            -_poi_search_score(p, q),
+            not bool(p.get("mapEligible", True)),
+            len(str(p.get("name", "") or "")),
+        ),
+    )
+    return ranked[:lim]
 
 
 def search_everything(query: str, limit: int) -> list[dict[str, Any]]:
@@ -251,13 +451,20 @@ def search_everything(query: str, limit: int) -> list[dict[str, Any]]:
     pois = _real_pois()
 
     if not q:
-        return [{"kind": "poi", "poi": p} for p in pois[:lim]]
+        ranked = sorted(pois, key=lambda p: (not bool(p.get("mapEligible", True)), p["name"]))
+        return [{"kind": "poi", "poi": p} for p in ranked[:lim]]
 
-    results: list[dict[str, Any]] = []
-    for p in pois:
-        hay = f'{p["name"]} {p["category"]} {p["blurb"]}'
-        if _includes(hay, q):
-            results.append({"kind": "poi", "poi": p})
-            if len(results) >= lim:
-                break
-    return results[:lim]
+    matches = [
+        p
+        for p in pois
+        if _includes(f'{p["name"]} {p["category"]} {p.get("uxCategory", "")} {p["blurb"]}', q)
+    ]
+    ranked = sorted(
+        matches,
+        key=lambda p: (
+            -_poi_search_score(p, q),
+            not bool(p.get("mapEligible", True)),
+            len(str(p.get("name", "") or "")),
+        ),
+    )
+    return [{"kind": "poi", "poi": p} for p in ranked[:lim]]

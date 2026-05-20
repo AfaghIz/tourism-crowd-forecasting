@@ -19,6 +19,7 @@ class ForecastService:
 
         rows = self._weekly.all_rows()
         latest = rows[-1]
+        peak = max(rows, key=lambda row: row.crowd_index)
         options: list[dict[str, str]] = [
             {
                 "id": latest.week_start.isoformat(),
@@ -26,6 +27,14 @@ class ForecastService:
                 "level": latest.crowd_level,
             }
         ]
+
+        peak_option = {
+            "id": peak.week_start.isoformat(),
+            "label": f"Peak modeled week ({peak.week_start.isoformat()})",
+            "level": peak.crowd_level,
+        }
+        if peak_option["id"] not in {item["id"] for item in options}:
+            options.append(peak_option)
 
         for level in ("Low", "Medium", "High"):
             row = _latest_row_for_level(rows, level)

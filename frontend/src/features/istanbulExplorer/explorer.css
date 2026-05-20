@@ -1,0 +1,36 @@
+@import "tailwindcss";
+@source "../../";
+
+/* Map pins: avoid OS / WebKit focus box and tap flash around SVG hit targets */
+.ie-root svg {
+  -webkit-tap-highlight-color: transparent;
+}
+.ie-root svg [role="button"] {
+  outline: none;
+}
+
+@keyframes ie-mobile-shimmer {
+  0% {
+    transform: translateX(-120%) skewX(-12deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-12deg);
+  }
+}
+.ie-mobile-activity__shimmer {
+  animation: ie-mobile-shimmer 2.6s ease-in-out infinite;
+}
+@keyframes ie-mobile-pulse {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.35);
+  }
+}
+.ie-mobile-activity__dot {
+  animation: ie-mobile-pulse 2.1s ease-in-out infinite;
+}

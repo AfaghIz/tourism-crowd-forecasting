@@ -5,17 +5,22 @@ import os
 from datetime import datetime
 from typing import Any
 
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, jsonify, redirect, request
 from flask_cors import CORS
 
 from catalog import list_hotels, list_pois, search_everything, search_hotels, search_pois
 from forecast_service import ForecastService
+from places_photo import fetch_place_photo_jpeg, safe_fallback_url
 from recommendation.pipeline import recommend as pipeline_recommend
 from weekly_model import IstanbulWeeklyModelRepository
 
 DEFAULT_ORIGINS = (
     "http://localhost:5173,"
     "http://127.0.0.1:5173,"
+    "http://localhost:5174,"
+    "http://127.0.0.1:5174,"
+    "http://localhost:5175,"
+    "http://127.0.0.1:5175,"
     "http://localhost:4173,"
     "http://127.0.0.1:4173,"
     "https://afaghiz.github.io"
@@ -103,6 +108,34 @@ def create_app() -> Flask:
     @app.get("/api/health")
     def health() -> Response:
         return Response("ok", mimetype="text/plain")
+
+    @app.get("/api/place-photo")
+    def place_photo() -> Response:
+        """
+        Google Places–quality thumbnail: Text Search + first Place Photo (proxied; API key server-side).
+
+        Query: name (required), lat, lng (optional bias), fallback (optional Wikimedia HTTPS URL).
+        If GOOGLE_MAPS_API_KEY is unset or lookup fails, redirects to ``fallback`` when safe.
+        """
+        display_name = request.args.get("name", "").strip()
+        if not display_name:
+            return jsonify({"errors": ["name query parameter is required"]}), 400
+
+        lat = request.args.get("lat", type=float)
+        lng = request.args.get("lng", type=float)
+        fallback = safe_fallback_url(request.args.get("fallback"))
+
+        api_key = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
+        if api_key:
+            result = fetch_place_photo_jpeg(api_key, display_name, lat, lng)
+            if result:
+                body, ctype = result
+                return Response(body, mimetype=ctype)
+
+        if fallback:
+            return redirect(fallback, code=302)
+
+        return Response(status=404)
 
     @app.get("/api/hotels")
     def hotels() -> Any:

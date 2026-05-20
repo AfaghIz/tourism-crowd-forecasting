@@ -10,6 +10,7 @@ export type Hotel = {
   priceFrom: number
   tags: string[]
   blurb: string
+  photoUrl?: string
 }
 
 export type Poi = {
@@ -19,11 +20,40 @@ export type Poi = {
   lat: number
   lng: number
   blurb: string
+  photoUrl?: string
 }
 
 export type SearchResult =
   | { kind: 'hotel'; hotel: Hotel }
   | { kind: 'poi'; poi: Poi }
+
+/** Wikimedia Commons thumbnails for Istanbul landmarks & districts (mock data). */
+const IST_PHOTO = {
+  blueMosque:
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Sultan_Ahmed_Mosque_%281st_exterior%29.jpg/320px-Sultan_Ahmed_Mosque_%281st_exterior%29.jpg',
+  hagia:
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Hagia_Sophia_Mars_2013.jpg/320px-Hagia_Sophia_Mars_2013.jpg',
+  galataTower:
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Galata_Tower_from_the_air.jpg/320px-Galata_Tower_from_the_air.jpg',
+  grandBazaar:
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Istanbul_Grand_Bazaar.jpg/320px-Istanbul_Grand_Bazaar.jpg',
+  spiceBazaar:
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Egyptian_Bazaar_Istanbul.jpg/320px-Egyptian_Bazaar_Istanbul.jpg',
+  istiklal:
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Istiklal_Avenue_in_the_evening.jpg/320px-Istiklal_Avenue_in_the_evening.jpg',
+  maidenTower:
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Leander%27s_Tower_%2810%29.jpg/320px-Leander%27s_Tower_%2810%29.jpg',
+  skyline:
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Istanbul_Skyline_from_Galata_Tower.jpg/320px-Istanbul_Skyline_from_Galata_Tower.jpg',
+  ortakoy:
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Ortak%C3%B6y_Mosque_and_Bosphorus_Bridge.jpg/320px-Ortak%C3%B6y_Mosque_and_Bosphorus_Bridge.jpg',
+  bosphorus:
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Bosphorus_Bridge_from_asian_side.jpg/320px-Bosphorus_Bridge_from_asian_side.jpg',
+  karakoy:
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Karak%C3%B6y%2C_Istanbul_%282017%29.jpg/320px-Karak%C3%B6y%2C_Istanbul_%282017%29.jpg',
+  uskudar:
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/%C3%9Csk%C3%BCdar_coast.jpg/320px-%C3%9Csk%C3%BCdar_coast.jpg'
+} as const
 
 const HOTELS: Hotel[] = [
   {
@@ -35,7 +65,8 @@ const HOTELS: Hotel[] = [
     rating: 4.7,
     priceFrom: 95,
     tags: ['heritage', 'sea view', 'tram nearby'],
-    blurb: 'A calm, design-forward stay within walking distance of the historic core.'
+    blurb: 'A calm, design-forward stay within walking distance of the historic core.',
+    photoUrl: IST_PHOTO.hagia
   },
   {
     id: 'grand-bazaar-heritage',
@@ -46,7 +77,8 @@ const HOTELS: Hotel[] = [
     rating: 4.6,
     priceFrom: 82,
     tags: ['shopping', 'cafes', 'family friendly'],
-    blurb: 'Mosaic interiors, quick access to spice, souvenirs, and old Istanbul streets.'
+    blurb: 'Mosaic interiors, quick access to spice, souvenirs, and old Istanbul streets.',
+    photoUrl: IST_PHOTO.grandBazaar
   },
   {
     id: 'galata-aurora',
@@ -57,7 +89,8 @@ const HOTELS: Hotel[] = [
     rating: 4.8,
     priceFrom: 110,
     tags: ['nightlife', 'view', 'boutique'],
-    blurb: 'Bright rooms and skyline vibes—perfect for exploring Galata after sunset.'
+    blurb: 'Bright rooms and skyline vibes—perfect for exploring Galata after sunset.',
+    photoUrl: IST_PHOTO.galataTower
   },
   {
     id: 'karakoy-harbor',
@@ -68,7 +101,8 @@ const HOTELS: Hotel[] = [
     rating: 4.5,
     priceFrom: 89,
     tags: ['waterfront', 'cafes', 'romantic'],
-    blurb: 'Modern comfort with a waterfront mood; ideal starting point for Bosphorus walks.'
+    blurb: 'Modern comfort with a waterfront mood; ideal starting point for Bosphorus walks.',
+    photoUrl: IST_PHOTO.karakoy
   },
   {
     id: 'besiktas-bosphorus-view',
@@ -79,7 +113,8 @@ const HOTELS: Hotel[] = [
     rating: 4.6,
     priceFrom: 103,
     tags: ['bosphorus', 'parking', 'quiet rooms'],
-    blurb: 'A sleek base with easy transit access and gentle evening light.'
+    blurb: 'A sleek base with easy transit access and gentle evening light.',
+    photoUrl: IST_PHOTO.bosphorus
   },
   {
     id: 'uskudar-riverside',
@@ -90,7 +125,8 @@ const HOTELS: Hotel[] = [
     rating: 4.4,
     priceFrom: 76,
     tags: ['riverside', 'ferries', 'local'],
-    blurb: 'Wander along the coast, grab breakfast by the water, and enjoy slower Istanbul.'
+    blurb: 'Wander along the coast, grab breakfast by the water, and enjoy slower Istanbul.',
+    photoUrl: IST_PHOTO.uskudar
   },
   {
     id: 'kadikoy-moda-sea-breeze',
@@ -101,7 +137,8 @@ const HOTELS: Hotel[] = [
     rating: 4.7,
     priceFrom: 92,
     tags: ['lifestyle', 'food', 'fashion'],
-    blurb: 'Style meets comfort in the heart of Kadıköy’s creative energy.'
+    blurb: 'Style meets comfort in the heart of Kadıköy’s creative energy.',
+    photoUrl: IST_PHOTO.bosphorus
   },
   {
     id: 'nisantasi-muse',
@@ -112,7 +149,8 @@ const HOTELS: Hotel[] = [
     rating: 4.6,
     priceFrom: 118,
     tags: ['luxury', 'shopping', 'design'],
-    blurb: 'Upscale details, refined interiors, and a short walk to boutiques.'
+    blurb: 'Upscale details, refined interiors, and a short walk to boutiques.',
+    photoUrl: IST_PHOTO.skyline
   },
   {
     id: 'ortakoy-sunset-house',
@@ -123,7 +161,8 @@ const HOTELS: Hotel[] = [
     rating: 4.5,
     priceFrom: 88,
     tags: ['bosphorus', 'views', 'art'],
-    blurb: 'Sunset-facing charm near the water and culture spots.'
+    blurb: 'Sunset-facing charm near the water and culture spots.',
+    photoUrl: IST_PHOTO.ortakoy
   }
 ]
 
@@ -134,7 +173,8 @@ const POIS: Poi[] = [
     category: 'Landmark',
     lat: 41.0055,
     lng: 28.9768,
-    blurb: 'Iconic architecture and timeless silhouettes.'
+    blurb: 'Iconic architecture and timeless silhouettes.',
+    photoUrl: IST_PHOTO.blueMosque
   },
   {
     id: 'hagia-sophia',
@@ -142,7 +182,8 @@ const POIS: Poi[] = [
     category: 'Museum',
     lat: 41.0086,
     lng: 28.9802,
-    blurb: 'A masterpiece of history, light, and scale.'
+    blurb: 'A masterpiece of history, light, and scale.',
+    photoUrl: IST_PHOTO.hagia
   },
   {
     id: 'galata-tower',
@@ -150,7 +191,8 @@ const POIS: Poi[] = [
     category: 'Viewpoint',
     lat: 41.025, // prototype accuracy is sufficient
     lng: 28.9744,
-    blurb: 'Climb for skyline views across Istanbul.'
+    blurb: 'Climb for skyline views across Istanbul.',
+    photoUrl: IST_PHOTO.galataTower
   },
   {
     id: 'grand-bazaar',
@@ -158,7 +200,8 @@ const POIS: Poi[] = [
     category: 'Shopping',
     lat: 41.0117,
     lng: 28.9682,
-    blurb: 'A maze of craft, textiles, and souvenirs.'
+    blurb: 'A maze of craft, textiles, and souvenirs.',
+    photoUrl: IST_PHOTO.grandBazaar
   },
   {
     id: 'spice-bazaar',
@@ -166,7 +209,8 @@ const POIS: Poi[] = [
     category: 'Market',
     lat: 41.0179,
     lng: 28.965,
-    blurb: 'Smells, spices, and vibrant vendor stalls.'
+    blurb: 'Smells, spices, and vibrant vendor stalls.',
+    photoUrl: IST_PHOTO.spiceBazaar
   },
   {
     id: 'istiklal',
@@ -174,7 +218,8 @@ const POIS: Poi[] = [
     category: 'Street',
     lat: 41.0364,
     lng: 28.9822,
-    blurb: 'Tram rides, boutiques, and late-night energy.'
+    blurb: 'Tram rides, boutiques, and late-night energy.',
+    photoUrl: IST_PHOTO.istiklal
   },
   {
     id: 'maiden-tower',
@@ -182,9 +227,18 @@ const POIS: Poi[] = [
     category: 'Landmark',
     lat: 41.0445,
     lng: 29.0516,
-    blurb: 'A romantic island icon on the Bosphorus.'
+    blurb: 'A romantic island icon on the Bosphorus.',
+    photoUrl: IST_PHOTO.maidenTower
   }
 ]
+
+/** Same list as above — exported for client-side “near me” ranking when the API is offline. */
+export const LOCAL_POIS_FOR_NEARBY: readonly Poi[] = POIS
+
+/** Resolve bundled thumbnail URL for a POI id (search / offline recommendations). */
+export function thumbUrlForPoiId(id: string): string | undefined {
+  return LOCAL_POIS_FOR_NEARBY.find((p) => p.id === id)?.photoUrl
+}
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms))

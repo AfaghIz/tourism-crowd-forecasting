@@ -50,6 +50,9 @@ FAMILY_COLUMNS: Final[tuple[str, ...]] = (
     "family_neighborhood_heritage",
 )
 
+_HIGH_CROWD: Final[float] = 2.0 / 3.0
+_MED_CROWD: Final[float] = 1.0 / 3.0
+
 
 def choose_alternative_weights(city_demand_score: float) -> dict[str, float]:
     """
@@ -73,6 +76,24 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
     except (TypeError, ValueError):
         pass
     return float(default)
+
+
+def _crowd_level_label(crowd_signal: float) -> str:
+    x = float(crowd_signal)
+    if x >= _HIGH_CROWD:
+        return "high"
+    if x >= _MED_CROWD:
+        return "medium"
+    return "low"
+
+
+def _crowd_level_rank(crowd_signal: float) -> int:
+    label = _crowd_level_label(crowd_signal)
+    if label == "high":
+        return 2
+    if label == "medium":
+        return 1
+    return 0
 
 
 def _anchor_active_subtypes(anchor_row: pd.Series) -> list[str]:
@@ -262,6 +283,13 @@ def rank_anchor_alternatives(
     if pool.empty:
         return pool
 
+    anchor_crowd_rank = _crowd_level_rank(anchor_crowd)
+    if anchor_crowd_rank > 0:
+        candidate_ranks = crowd_vals.loc[pool.index].map(_crowd_level_rank)
+        pool = pool.loc[candidate_ranks < anchor_crowd_rank].copy()
+        if pool.empty:
+            return pool
+
     keep_mask: list[bool] = []
     family_overlap_counts: list[float] = []
     overlap_counts: list[float] = []
@@ -362,6 +390,7 @@ def build_alternative_payload(
         alt_crowd = _safe_float(row.get(crowd_col), default=0.5)
         crowd_drop = max(0.0, anchor_crowd - alt_crowd)
         name = row.get("display_name_en") or row.get("name")
+        crowd_label = _crowd_level_label(alt_crowd)
         item = {
             "poi_id": row.get(COL_POI_ID),
             "name": name,
@@ -372,6 +401,7 @@ def build_alternative_payload(
             "distance_to_anchor_km": round(float(row.get("distance_to_anchor_km", np.nan)), 3),
             "category": row.get(COL_CATEGORY),
             "crowd_signal": round(alt_crowd, 4),
+            "crowd_level_label": crowd_label,
             "crowd_relief": round(float(row.get("crowd_relief", 0.0)), 4),
             "similarity": round(float(row.get("similarity_score", 0.0)), 4),
             "practicality": round(float(row.get("practicality_score", 0.0)), 4),
