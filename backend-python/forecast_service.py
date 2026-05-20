@@ -20,21 +20,22 @@ class ForecastService:
         rows = self._weekly.all_rows()
         latest = rows[-1]
         peak = max(rows, key=lambda row: row.crowd_index)
-        options: list[dict[str, str]] = [
-            {
-                "id": latest.week_start.isoformat(),
-                "label": f"Latest modeled week ({latest.week_start.isoformat()})",
-                "level": latest.crowd_level,
-            }
-        ]
+        options: list[dict[str, str]] = []
 
         peak_option = {
             "id": peak.week_start.isoformat(),
-            "label": f"Peak modeled week ({peak.week_start.isoformat()})",
+            "label": f"Crowded demo week ({peak.week_start.isoformat()}, index {_to_pct_score(peak.crowd_index)}%)",
             "level": peak.crowd_level,
         }
-        if peak_option["id"] not in {item["id"] for item in options}:
-            options.append(peak_option)
+        options.append(peak_option)
+
+        latest_option = {
+            "id": latest.week_start.isoformat(),
+            "label": f"Latest modeled week ({latest.week_start.isoformat()})",
+            "level": latest.crowd_level,
+        }
+        if latest_option["id"] not in {item["id"] for item in options}:
+            options.append(latest_option)
 
         for level in ("Low", "Medium", "High"):
             row = _latest_row_for_level(rows, level)
@@ -49,6 +50,19 @@ class ForecastService:
                 options.append(option)
 
         return options
+
+    def calendar_period_options(self) -> list[dict[str, str]]:
+        if not self._weekly.is_loaded():
+            return []
+
+        return [
+            {
+                "id": row.week_start.isoformat(),
+                "label": f"Modeled week ({row.week_start.isoformat()})",
+                "level": row.crowd_level,
+            }
+            for row in self._weekly.all_rows()
+        ]
 
     def forecast(self, req: dict[str, Any]) -> dict[str, Any]:
         if self._weekly.is_loaded():

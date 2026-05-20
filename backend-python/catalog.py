@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import unicodedata
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -114,7 +115,14 @@ LEGACY_POI_DATASET = PROJECT_ROOT / "backend-python" / "otm_pois_model_ready.csv
 
 
 def _normalize(input_str: str | None) -> str:
-    return "" if input_str is None else input_str.strip().lower()
+    if input_str is None:
+        return ""
+    text = input_str.strip().lower().replace("ı", "i")
+    return "".join(
+        ch
+        for ch in unicodedata.normalize("NFKD", text)
+        if not unicodedata.combining(ch)
+    )
 
 
 def _includes(haystack: str | None, query: str) -> bool:
@@ -237,6 +245,7 @@ def _is_map_eligible(row: pd.Series) -> bool:
         "is_tomb",
         "is_fountain",
         "is_gate",
+        "is_market",
     )
     return any(_flag_on(row, key) for key in subtype_flags)
 
@@ -269,6 +278,7 @@ def _derive_ux_category(row: pd.Series) -> str:
             "is_tower",
             "is_bridge",
             "is_gate",
+            "is_market",
         )
     ):
         return "Landmark"
@@ -316,6 +326,8 @@ def _derive_poi_tags(row: pd.Series) -> list[str]:
         tags.append("Bridge")
     elif _flag_on(row, "is_hamam"):
         tags.append("Hamam")
+    elif _is_market_row(row):
+        tags.append("Market")
     elif _flag_on(row, "is_gate"):
         tags.append("Gate")
     elif _flag_on(row, "is_fountain"):
@@ -330,6 +342,19 @@ def _derive_poi_tags(row: pd.Series) -> list[str]:
         if tag and tag not in out:
             out.append(tag)
     return out[:4]
+
+
+def _is_market_row(row: pd.Series) -> bool:
+    if _flag_on(row, "is_market"):
+        return True
+    combined = " ".join(
+        str(row.get(col, "") or "")
+        for col in ("name", "display_name_en", "kinds", "category_clean", "query_area")
+    ).casefold()
+    return any(
+        term in combined
+        for term in ("bazaar", "bazar", "marketplace", "marketplaces", "çarşı", "carsi", "kapalı")
+    )
 
 
 def _poi_record(row: pd.Series) -> dict[str, Any] | None:

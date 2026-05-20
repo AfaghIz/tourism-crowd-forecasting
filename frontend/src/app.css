@@ -94,12 +94,12 @@ body {
   #app {
     max-width: 100%;
     overflow-x: clip;
-    zoom: clamp(0.58, calc(100vw / 520), 0.92);
+    zoom: clamp(0.66, calc(100vw / 520), 0.94);
   }
 }
 @media (width<=380px) {
   #app {
-    zoom: clamp(0.52, calc(100vw / 520), 0.88);
+    zoom: clamp(0.62, calc(100vw / 520), 0.9);
   }
 }
 #app {
@@ -826,6 +826,71 @@ body {
 .visitDateRow {
   margin-top: 12px;
 }
+.visitDateRow--collapsed {
+  margin-top: 8px;
+}
+.calendarDisclosure {
+  border: 1px solid #1a453629;
+  border-radius: 13px;
+  background:
+    linear-gradient(145deg, #fffaf3d9 0%, #f2eaded1 100%),
+    repeating-linear-gradient(135deg, #0000 0 12px, #1a453608 12px 13px);
+  box-shadow: 0 8px 18px #2a241c10;
+  overflow: hidden;
+}
+.calendarDisclosure__summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 9px;
+}
+.calendarDisclosure__summary::-webkit-details-marker {
+  display: none;
+}
+.calendarDisclosure__summary:after {
+  content: "⌄";
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 23px;
+  height: 23px;
+  color: var(--deepGreen);
+  background: #ffffff9e;
+  border: 1px solid #1a453624;
+  border-radius: 999px;
+  transition: transform 0.18s ease;
+}
+.calendarDisclosure[open] .calendarDisclosure__summary:after {
+  transform: rotate(180deg);
+}
+.calendarDisclosure__eyebrow {
+  display: block;
+  color: var(--muted2);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 8.5px;
+  font-weight: 700;
+}
+.calendarDisclosure__title {
+  display: block;
+  color: var(--deepGreen);
+  font-family: var(--fontDisplay);
+  font-size: 13px;
+  font-weight: 700;
+}
+.calendarDisclosure__hint {
+  color: var(--muted2);
+  text-align: right;
+  font-size: 10px;
+}
+.calendarDisclosure .miniCalendar {
+  max-width: none;
+  margin: 0 8px 8px;
+  padding: 8px 8px 7px;
+}
 .miniCalendar {
   background:
     linear-gradient(160deg, #fffcf7f2 0%, #f3ede3f5 55%, #ebe4d8e8 100%),
@@ -855,6 +920,10 @@ body {
   margin-bottom: 8px;
   display: flex;
 }
+.calendarDisclosure .miniCalendar__nav {
+  gap: 6px;
+  margin-bottom: 6px;
+}
 .miniCalendar__navBtn {
   cursor: pointer;
   color: var(--deepGreen);
@@ -874,6 +943,12 @@ body {
     box-shadow 0.15s,
     border-color 0.15s;
 }
+.calendarDisclosure .miniCalendar__navBtn {
+  width: 28px;
+  height: 28px;
+  font-size: 17px;
+  border-width: 1px;
+}
 .miniCalendar__navBtn:hover:not(:disabled) {
   border-color: var(--deepGreen);
   transform: scale(1.06);
@@ -891,6 +966,9 @@ body {
   flex: 1;
   font-size: clamp(15px, 3.5vw, 18px);
   font-weight: 600;
+}
+.calendarDisclosure .miniCalendar__month {
+  font-size: 14px;
 }
 .miniCalendar__weekdays {
   grid-template-columns: repeat(7, 1fr);
@@ -910,6 +988,9 @@ body {
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 5px 4px;
   display: grid;
+}
+.calendarDisclosure .miniCalendar__cells {
+  gap: 4px 3px;
 }
 .miniCalendar__pad {
   min-height: 1px;
@@ -937,6 +1018,17 @@ body {
     background 0.12s;
   animation: miniCalDayBob 2.4s ease-in-out infinite;
   animation-delay: var(--day-delay, 0s);
+}
+.calendarDisclosure .miniCalendar__day {
+  width: 26px;
+  height: 26px;
+  border-width: 1px;
+  font-size: 12px;
+}
+.calendarDisclosure .miniCalendar__clear {
+  margin-top: 8px;
+  padding: 6px 8px;
+  font-size: 11px;
 }
 .miniCalendar__day:hover:not(:disabled) {
   border-color: var(--deepGreen);
@@ -1201,7 +1293,7 @@ body {
 }
 @media (width>=1025px) {
   .map {
-    min-height: min(62svh, 620px);
+    min-height: min(85svh, 920px);
   }
 }
 .leaflet-container {
@@ -1579,7 +1671,7 @@ body {
 @media (width<=768px) {
   .page {
     padding: calc(12px + var(--safe-top)) calc(12px + var(--safe-right))
-      calc(12px + var(--safe-bottom)) calc(12px + var(--safe-left));
+      calc(86px + var(--safe-bottom)) calc(12px + var(--safe-left));
     gap: 12px;
   }
   .topbar--slim {
@@ -1713,7 +1805,7 @@ body {
     font-size: 1.2rem;
   }
   .map {
-    min-height: 40svh;
+    min-height: 58dvh;
   }
   .forecastSpotlight.forecastSheet {
     max-height: min(56vh, 480px);
@@ -1912,8 +2004,8 @@ body {
 .popularPathBelow.spotGuide {
   border: 0;
   background: transparent;
-  /* Pull up toward the map card (slight overlap reads as one column) */
-  margin-top: -10px;
+  /* Keep the route toggle close to the map without overlapping the map controls/card. */
+  margin-top: 8px;
   /* Stay within the map column so the route fills space between search (videos) and trip (calendar) */
   width: 100%;
   max-width: 100%;
@@ -1921,7 +2013,7 @@ body {
   margin-right: 0;
   position: relative;
   z-index: 2;
-  padding: clamp(0px, 0.35vw, 4px) 0 clamp(8px, 1.2vw, 14px);
+  padding: 0 0 clamp(6px, 0.8vw, 10px);
   box-shadow: none;
 }
 @media (width >= 1025px) {

@@ -5,6 +5,7 @@ import { createMap } from './map/mapController'
 import {
   listPois,
   listForecastPeriods,
+  listForecastCalendarPeriods,
   searchEverything,
   fetchRecommendations,
   placePhotoProxyUrl,
@@ -133,7 +134,7 @@ const EXPLORER_POI_NAME_ALIASES: Record<string, readonly string[]> = {
   bridge: ['Bosphorus Bridge'],
   spice: ['Spice Bazaar'],
   maiden: ["Maiden's Tower", 'Maiden Tower', 'Kız Kulesi', 'Kiz Kulesi'],
-  taksim: ['Taksim Square']
+  taksim: ['Taksim Square', 'Republic Monument']
 }
 
 function normalizePlaceName(value: string): string {
@@ -321,31 +322,37 @@ root.innerHTML = `
                 <span class="selectShell__chevron" aria-hidden="true">▾</span>
               </div>
             </div>
-            <div class="visitDateRow">
-              <div class="fieldLabel">
-                <span>Visit date</span>
-              </div>
-              <input type="hidden" id="visitDatePicker" value="" autocomplete="off" />
-              <div class="miniCalendar" id="visitCalendarShell" aria-label="Choose visit date">
-                <div class="miniCalendar__nav">
-                  <button type="button" class="miniCalendar__navBtn" id="visitCalPrev" aria-label="Previous month">
-                    ‹
-                  </button>
-                  <div class="miniCalendar__month" id="visitCalMonthYear"></div>
-                  <button type="button" class="miniCalendar__navBtn" id="visitCalNext" aria-label="Next month">
-                    ›
-                  </button>
-                </div>
-                <div class="miniCalendar__weekdays" aria-hidden="true">
-                  <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
-                </div>
-                <div class="miniCalendar__cells" id="visitCalGrid" role="group"></div>
-                <button type="button" class="miniCalendar__clear" id="visitCalClear">
-                  Clear · use right now
-                </button>
-              </div>
-            </div>
             <div class="sideVideoStack sideVideoStack--trip" aria-label="More Istanbul video clips">${SIDE_VIDEO_TRIP_STACK_HTML}</div>
+            <div class="visitDateRow visitDateRow--collapsed">
+              <input type="hidden" id="visitDatePicker" value="" autocomplete="off" />
+              <details class="calendarDisclosure" id="visitCalendarDisclosure">
+                <summary class="calendarDisclosure__summary">
+                  <span>
+                    <span class="calendarDisclosure__eyebrow">Modeled</span>
+                    <span class="calendarDisclosure__title">Period calendar</span>
+                  </span>
+                  <span class="calendarDisclosure__hint">Pick an available week</span>
+                </summary>
+                <div class="miniCalendar" id="visitCalendarShell" aria-label="Choose modeled period">
+                  <div class="miniCalendar__nav">
+                    <button type="button" class="miniCalendar__navBtn" id="visitCalPrev" aria-label="Previous month">
+                      ‹
+                    </button>
+                    <div class="miniCalendar__month" id="visitCalMonthYear"></div>
+                    <button type="button" class="miniCalendar__navBtn" id="visitCalNext" aria-label="Next month">
+                      ›
+                    </button>
+                  </div>
+                  <div class="miniCalendar__weekdays" aria-hidden="true">
+                    <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+                  </div>
+                  <div class="miniCalendar__cells" id="visitCalGrid" role="group"></div>
+                  <button type="button" class="miniCalendar__clear" id="visitCalClear">
+                    Clear · use dropdown default
+                  </button>
+                </div>
+              </details>
+            </div>
           </div>
         </section>
       </div>
@@ -392,6 +399,60 @@ _visitCalInitDay.setHours(0, 0, 0, 0)
 let visitCalMinD = new Date(_visitCalInitDay)
 let visitCalMaxD = new Date(_visitCalInitDay)
 visitCalMaxD.setFullYear(visitCalMaxD.getFullYear() + 1)
+let modeledPeriodOptions: ForecastPeriodOption[] = []
+let modeledPeriodIds = new Set<string>()
+let curatedModeledPeriodOptions: ForecastPeriodOption[] = []
+
+function dateFromYmd(ymd: string): Date | null {
+  const [y, m, d] = ymd.split('-').map(Number)
+  if (!y || !m || !d) return null
+  const parsed = new Date(y, m - 1, d)
+  parsed.setHours(0, 0, 0, 0)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function syncModeledCalendarBounds(): void {
+  const availableDates = modeledPeriodOptions
+    .map((period) => dateFromYmd(period.id))
+    .filter((d): d is Date => Boolean(d))
+    .sort((a, b) => a.getTime() - b.getTime())
+
+  if (!availableDates.length) return
+
+  visitCalMinD = new Date(availableDates[0])
+  visitCalMaxD = new Date(availableDates[availableDates.length - 1])
+  visitCalView = startOfMonth(dateFromYmd(currentForecastBasisWeekStart) ?? visitCalMaxD)
+  clampVisitCalViewToRange()
+}
+
+function updateModeledCalendarHint(periodId: string): void {
+  const hint = document.querySelector<HTMLElement>('.calendarDisclosure__hint')
+  if (!hint) return
+  hint.textContent = periodId ? `Selected ${periodId}` : 'Pick an available week'
+}
+
+function applyModeledPeriodSelection(periodId: string, options: { updateSelect?: boolean } = {}): void {
+  const select = document.getElementById('forecastPeriodSelect') as HTMLSelectElement | null
+  const hidden = document.getElementById('visitDatePicker') as HTMLInputElement | null
+  const next = periodId.trim()
+
+  currentForecastBasisWeekStart = next
+  if (hidden) hidden.value = next
+  if (select && options.updateSelect !== false) {
+    const hasOption = Array.from(select.options).some((option) => option.value === next)
+    if (hasOption) select.value = next
+  }
+  const selectedDate = dateFromYmd(next)
+  if (selectedDate) visitCalView = startOfMonth(selectedDate)
+  updateModeledCalendarHint(next)
+
+  renderVisitCalendar()
+  void refreshPoiCrowdLevels()
+  if (currentSelection) {
+    setChip(currentSelection)
+    if (currentSelection.kind === 'location') void showNearbyMatches(currentSelection.latlng)
+  }
+}
 
 function clampVisitCalViewToRange(): void {
   const minYm = visitCalMinD.getFullYear() * 12 + visitCalMinD.getMonth()
@@ -458,14 +519,14 @@ function renderVisitCalendar(): void {
     )
     btn.style.setProperty('--day-delay', `${((d + lead) % 7) * 0.04}s`)
 
-    if (cellDate < visitCalMinD || cellDate > visitCalMaxD) {
+    const isAvailableModeledPeriod = modeledPeriodIds.size === 0 || modeledPeriodIds.has(ymd)
+
+    if (cellDate < visitCalMinD || cellDate > visitCalMaxD || !isAvailableModeledPeriod) {
       btn.disabled = true
       btn.classList.add('miniCalendar__day--muted')
     } else {
       btn.addEventListener('click', () => {
-        hidden.value = ymd
-        renderVisitCalendar()
-        onFilterChange()
+        applyModeledPeriodSelection(ymd)
       })
     }
 
@@ -486,19 +547,27 @@ function syncVisitDatePickerBounds(): void {
   renderVisitCalendar()
 }
 
-/** ISO timestamp for ``POST /api/recommendations``: chosen day + current clock, or now when the date is cleared. */
-function getRecommendationTimestampISO(): string {
-  const input = document.getElementById('visitDatePicker') as HTMLInputElement | null
-  const raw = input?.value?.trim()
-  if (!raw) return new Date().toISOString()
-  const parts = raw.split('-').map(Number)
+function isoWithCurrentClock(datePart: string): string | null {
+  const parts = datePart.split('-').map(Number)
   const y = parts[0]
   const mo = parts[1]
   const d = parts[2]
-  if (!y || !mo || !d) return new Date().toISOString()
+  if (!y || !mo || !d) return null
   const now = new Date()
   const visit = new Date(y, mo - 1, d, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds())
   return visit.toISOString()
+}
+
+/** ISO timestamp for recommendations: modeled period first, optional visit date second, otherwise now. */
+function getRecommendationTimestampISO(): string {
+  const modeledWeek = currentForecastBasisWeekStart.trim()
+  const modeledTs = modeledWeek ? isoWithCurrentClock(modeledWeek) : null
+  if (modeledTs) return modeledTs
+
+  const input = document.getElementById('visitDatePicker') as HTMLInputElement | null
+  const raw = input?.value?.trim()
+  if (!raw) return new Date().toISOString()
+  return isoWithCurrentClock(raw) ?? new Date().toISOString()
 }
 
 function getCategoryFilter(): string {
@@ -512,6 +581,8 @@ let poiCrowdLevels = new Map<string, 'Low' | 'Medium' | 'High'>()
 let highlightedRecommendationPoiIds = new Set<string>()
 let recommendationLineTargets: LatLng[] = []
 let poiForecastRefreshToken = 0
+let forecastPanelRefreshToken = 0
+let alternativesRefreshToken = 0
 
 function refreshPoiMarkers(): void {
   const cat = getCategoryFilter()
@@ -718,6 +789,7 @@ function resetSearchPanelToDiscovery(): void {
 }
 
 async function fillAlternativesIfCrowded(sel: AppSelection, crowdLevel: string, forecastScope: string) {
+  const token = ++alternativesRefreshToken
   const warn = el<HTMLDivElement>('crowdedWarning')
   const block = el<HTMLDivElement>('alternativesBlock')
   const list = el<HTMLDivElement>('alternativesList')
@@ -778,6 +850,7 @@ async function fillAlternativesIfCrowded(sel: AppSelection, crowdLevel: string, 
         : {}),
       ...(cat ? { allowedCategories: [cat] } : {})
     })
+    if (token !== alternativesRefreshToken) return
     const recs = data.recommendations
     const matchedRecs = recs.filter((rec) => {
       const poiId =
@@ -884,6 +957,7 @@ async function fillAlternativesIfCrowded(sel: AppSelection, crowdLevel: string, 
     }
     refreshPoiMarkers()
   } catch {
+    if (token !== alternativesRefreshToken) return
     list.innerHTML = '<p class="altEmpty">Suggestions unavailable right now. Try again in a moment.</p>'
     refreshPoiMarkers()
   }
@@ -892,6 +966,7 @@ async function fillAlternativesIfCrowded(sel: AppSelection, crowdLevel: string, 
 let lastSetChipPeekKey = '__init__'
 
 function setChip(selection: AppSelection | null) {
+  const token = ++forecastPanelRefreshToken
   const peekKey = selection
     ? `${selection.kind}|${selection.label}|${selection.latlng.lat.toFixed(4)}|${selection.latlng.lng.toFixed(4)}`
     : 'null'
@@ -917,6 +992,7 @@ function setChip(selection: AppSelection | null) {
   const forecastBadgesEl = document.getElementById('forecastBadges')
 
   if (!selection) {
+    alternativesRefreshToken++
     highlightedRecommendationPoiIds = new Set<string>()
     recommendationLineTargets = []
     refreshPoiMarkers()
@@ -942,6 +1018,7 @@ function setChip(selection: AppSelection | null) {
     highlightedRecommendationPoiIds = new Set<string>()
     recommendationLineTargets = []
   }
+  alternativesRefreshToken++
   refreshPoiMarkers()
 
   openMapsBtn.disabled = false
@@ -970,8 +1047,10 @@ function setChip(selection: AppSelection | null) {
     currentForecastBasisWeekStart || undefined
   )
     .then((res) => {
+      if (token !== forecastPanelRefreshToken) return
       if (!currentSelection) return
       if (currentSelection.label !== selection.label || currentSelection.kind !== selection.kind) return
+      if ((currentSelection.entityId ?? '') !== (selection.entityId ?? '')) return
       forecastLevel.textContent = res.level
       forecastScore.textContent = String(res.score)
       forecastTrend.textContent = res.trend
@@ -996,6 +1075,7 @@ function setChip(selection: AppSelection | null) {
       void fillAlternativesIfCrowded(selection, res.level, scope)
     })
     .catch(() => {
+      if (token !== forecastPanelRefreshToken) return
       highlightedRecommendationPoiIds = new Set<string>()
       recommendationLineTargets = []
       refreshPoiMarkers()
@@ -1441,7 +1521,6 @@ function findExplorerPoiMatch(landmark: ExplorerLandmark): Poi | null {
 }
 
 function focusExplorerLandmark(landmark: ExplorerLandmark): void {
-  const target = { lat: landmark.lat, lng: landmark.lng }
   const mappedPoi = findExplorerPoiMatch(landmark)
 
   if (mappedPoi) {
@@ -1449,16 +1528,7 @@ function focusExplorerLandmark(landmark: ExplorerLandmark): void {
     return
   }
 
-  recentSearchesAdd(landmark.name)
-  resetSearchPanelToDiscovery()
-
-  currentSelection = {
-    latlng: target,
-    label: landmark.name,
-    kind: 'map'
-  }
-  setChip(currentSelection)
-  map.setMarker(currentSelection, { flyTo: true })
+  console.warn(`Explorer landmark "${landmark.name}" has no matching dataset POI; ignoring route-map click.`)
 }
 
 globalSearchInput.addEventListener('input', () => {
@@ -1544,21 +1614,36 @@ async function initForecastPeriods(): Promise<void> {
 
   try {
     const periods = await listForecastPeriods()
+    curatedModeledPeriodOptions = periods
     const options = periods
       .map((period: ForecastPeriodOption) => {
         const label = `${period.label} · ${period.level}`
         return `<option value="${escapeHtml(period.id)}">${escapeHtml(label)}</option>`
       })
       .join('')
-    select.insertAdjacentHTML('beforeend', options)
+    if (options) {
+      select.innerHTML = options
+      currentForecastBasisWeekStart = select.value.trim()
+      const hidden = document.getElementById('visitDatePicker') as HTMLInputElement | null
+      if (hidden) hidden.value = currentForecastBasisWeekStart
+      updateModeledCalendarHint(currentForecastBasisWeekStart)
+    }
   } catch {
     // Keep the default "latest modeled week" option when the endpoint is unavailable.
   }
 
+  try {
+    const calendarPeriods = await listForecastCalendarPeriods()
+    modeledPeriodOptions = calendarPeriods.length ? calendarPeriods : curatedModeledPeriodOptions
+  } catch {
+    modeledPeriodOptions = curatedModeledPeriodOptions
+  }
+  modeledPeriodIds = new Set(modeledPeriodOptions.map((period) => period.id))
+  syncModeledCalendarBounds()
+  renderVisitCalendar()
+
   select.addEventListener('change', () => {
-    currentForecastBasisWeekStart = select.value.trim()
-    void refreshPoiCrowdLevels()
-    if (currentSelection) setChip(currentSelection)
+    applyModeledPeriodSelection(select.value.trim(), { updateSelect: false })
   })
 }
 
@@ -1594,9 +1679,16 @@ function wireVisitCalendar(): void {
     renderVisitCalendar()
   })
   clear?.addEventListener('click', () => {
-    if (hidden) hidden.value = ''
-    renderVisitCalendar()
-    onFilterChange()
+    const select = document.getElementById('forecastPeriodSelect') as HTMLSelectElement | null
+    const fallback = select?.options[0]?.value?.trim() || modeledPeriodOptions[0]?.id || ''
+    if (hidden) hidden.value = fallback
+    if (fallback) applyModeledPeriodSelection(fallback)
+    else {
+      currentForecastBasisWeekStart = ''
+      updateModeledCalendarHint('')
+      renderVisitCalendar()
+      onFilterChange()
+    }
   })
 }
 

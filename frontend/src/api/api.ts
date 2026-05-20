@@ -143,6 +143,10 @@ export async function listForecastPeriods(): Promise<ForecastPeriodOption[]> {
   return await getJson<ForecastPeriodOption[]>('/api/forecast-periods')
 }
 
+export async function listForecastCalendarPeriods(): Promise<ForecastPeriodOption[]> {
+  return await getJson<ForecastPeriodOption[]>('/api/forecast-calendar-periods')
+}
+
 export async function searchEverything(query: string, limit = 10): Promise<SearchResult[]> {
   const raw = await getJson<any[]>('/api/search', { q: query, limit })
   // Backend returns {kind, hotel? poi?}; map to the frontend union exactly.

@@ -38,6 +38,12 @@ ATTR_CITY_DEMAND_SCORE: Final[str] = "city_demand_score"
 ATTR_CROWD_BASIS_DATE: Final[str] = "crowd_basis_date"
 
 DEFAULT_WORKFLOW_CSV: Final[str] = "otm_crowdindex_xgb__rf_weekly.csv"
+MANUAL_POI_CROWD_PROXIES: Final[dict[str, tuple[str, float]]] = {
+    # Grand Bazaar was restored from the raw POI source after the workflow matrix
+    # was generated. Use Spice Bazaar as the nearest modeled historic-market proxy.
+    # Keep the multiplier neutral so the value remains a conservative proxy.
+    "manual_303807317": ("otm_N4591192493", 1.0),
+}
 
 
 @runtime_checkable
@@ -199,7 +205,15 @@ class WorkflowCrowdScoreProvider:
         if not pid:
             return 0.5
         date_key = self._date_key(timestamp)
-        return float(self._score_lookup.get((pid, date_key), 0.5))
+        direct = self._score_lookup.get((pid, date_key))
+        if direct is not None:
+            return float(direct)
+        proxy_pid = MANUAL_POI_CROWD_PROXIES.get(pid)
+        if proxy_pid:
+            source_pid, multiplier = proxy_pid
+            proxy_score = float(self._score_lookup.get((source_pid, date_key), 0.5))
+            return min(1.0, max(0.0, proxy_score * multiplier))
+        return 0.5
 
     def get_city_demand_score(self, timestamp: datetime | None = None) -> float:
         date_key = self._date_key(timestamp)

@@ -39,6 +39,7 @@ SUBTYPE_COLUMNS: Final[tuple[str, ...]] = (
     "is_tomb",
     "is_fountain",
     "is_gate",
+    "is_market",
 )
 
 FAMILY_COLUMNS: Final[tuple[str, ...]] = (
@@ -150,6 +151,8 @@ def _anchor_intent(anchor_row: pd.Series) -> str:
         return "museum_cultural"
     if has_religious:
         return "monumental_religious"
+    if _has_subtype(anchor_row, "is_market"):
+        return "market_heritage"
     if has_heritage:
         return "neighborhood_heritage"
     return "generic"
@@ -207,6 +210,9 @@ def _candidate_passes_compatibility(
 
     if intent == "museum_cultural":
         return _has_family(row, "family_museum_cultural") or overlap_count >= 1
+
+    if intent == "market_heritage":
+        return _has_subtype(row, "is_market") or _has_family(row, "family_neighborhood_heritage")
 
     if intent == "neighborhood_heritage":
         return _has_family(row, "family_neighborhood_heritage")

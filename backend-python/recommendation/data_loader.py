@@ -79,6 +79,7 @@ def load_poi_data(filepath: str) -> pd.DataFrame:
 
     out = _clean_category(out)
     out = _drop_excluded_rows(out)
+    out = _add_derived_semantic_flags(out)
     out = _add_mock_crowd_column(out)
     out = _add_normalized_features(out)
 
@@ -132,6 +133,30 @@ def _drop_excluded_rows(df: pd.DataFrame) -> pd.DataFrame:
         return work
     flag = pd.to_numeric(work[COL_EXCLUDE_FROM_PART_B], errors="coerce").fillna(0).astype(int)
     return work.loc[flag == 0].copy()
+
+
+def _add_derived_semantic_flags(df: pd.DataFrame) -> pd.DataFrame:
+    """Add lightweight semantic flags for restored/manual POIs without rewriting old CSV exports."""
+    work = df.copy()
+    text_cols = [
+        c
+        for c in ("name", "display_name_en", "kinds", "category_clean", "query_area", "text_combined_norm")
+        if c in work.columns
+    ]
+    if text_cols:
+        hay = (
+            work[text_cols]
+            .fillna("")
+            .astype(str)
+            .agg(" ".join, axis=1)
+            .str.casefold()
+        )
+    else:
+        hay = pd.Series("", index=work.index, dtype="string")
+
+    market_terms = ("bazaar", "bazar", "market", "marketplace", "marketplaces", "çarşı", "carsi", "kapalı")
+    work["is_market"] = hay.map(lambda value: int(any(term in value for term in market_terms)))
+    return work
 
 
 def _add_mock_crowd_column(df: pd.DataFrame) -> pd.DataFrame:

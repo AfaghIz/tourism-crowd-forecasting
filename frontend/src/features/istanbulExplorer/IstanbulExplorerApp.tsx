@@ -2,8 +2,8 @@ import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from '
 import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { useExplorerStore } from './store'
 import { EXPLORER_POIS, SIDEBAR_ROUTES } from './data'
-import { buildCurvedRoutePath, applyCrowdSorting, walkFromPrevious } from './geometry'
-import type { ExplorerPOI, ExplorerTag } from './types'
+import { buildCurvedRoutePath } from './geometry'
+import type { ExplorerPOI } from './types'
 import {
   mapThreadToRoutePlate,
   routePlateRectForViewBoxHeight
@@ -18,18 +18,6 @@ import iconMaidenTower from '../../ui/maiden tower png.png'
 import iconSpiceBazaar from '../../ui/spice bazaar png.webp'
 import iconTaksim from '../../ui/taksim png.png'
 import iconTopkapi from '../../ui/topkapi palace png.jpg'
-
-const TAGS: { id: ExplorerTag; label: string }[] = [
-  { id: 'historical', label: 'Historical' },
-  { id: 'food', label: 'Food' },
-  { id: 'shopping', label: 'Shopping' },
-  { id: 'nature', label: 'Nature' },
-  { id: 'nightlife', label: 'Nightlife' },
-  { id: 'family', label: 'Family' },
-  { id: 'rain', label: 'Rain-friendly' }
-]
-
-
 
 /** Curated images in `src/ui` — keyed by POI id (`premiumHelpers` / explorer data). */
 const POI_ICON_SRC: Partial<Record<string, string>> = {
@@ -54,17 +42,10 @@ const ACCENT_MARKER: Record<ExplorerPOI['accentKey'], { fill: string; stroke: st
 }
 
 function useFilteredOrdered() {
-  const tagsFilter = useExplorerStore((s) => s.tagsFilter)
-  const avoidCrowds = useExplorerStore((s) => s.avoidCrowds)
-
   return useMemo(() => {
-    const filtered =
-      tagsFilter.size === 0
-        ? EXPLORER_POIS
-        : EXPLORER_POIS.filter((p) => p.tags.some((t) => tagsFilter.has(t)))
-    const ordered = applyCrowdSorting(filtered, avoidCrowds)
-    return { filtered, ordered }
-  }, [tagsFilter, avoidCrowds])
+    const ordered = EXPLORER_POIS
+    return { ordered }
+  }, [])
 }
 
 function StopListGlyph({
@@ -85,6 +66,13 @@ function StopListGlyph({
         alt=""
         className="h-7 w-7 shrink-0 object-cover"
         style={{
+          width: 28,
+          height: 28,
+          maxWidth: 28,
+          maxHeight: 28,
+          display: 'block',
+          objectFit: 'cover',
+          flexShrink: 0,
           filter: matte
             ? `${matte} drop-shadow(0 1px 1px rgba(0,0,0,0.12))`
             : 'drop-shadow(0 1px 1px rgba(0,0,0,0.12))'
@@ -105,21 +93,14 @@ export function IstanbulExplorerApp({
   openDirections: (poi: ExplorerPOI) => void
 }) {
   const theme = useExplorerStore((s) => s.theme)
-  const tagsFilter = useExplorerStore((s) => s.tagsFilter)
-  const playback = useExplorerStore((s) => s.playback)
   const hoveredId = useExplorerStore((s) => s.hoveredId)
   const selectedId = useExplorerStore((s) => s.selectedId)
   const sheetExpanded = useExplorerStore((s) => s.sheetExpanded)
-  const filterFabOpen = useExplorerStore((s) => s.filterFabOpen)
   const favorites = useExplorerStore((s) => s.favorites)
 
   const setHoveredId = useExplorerStore((s) => s.setHoveredId)
   const setSelectedId = useExplorerStore((s) => s.setSelectedId)
   const setSheetExpanded = useExplorerStore((s) => s.setSheetExpanded)
-  const toggleTag = useExplorerStore((s) => s.toggleTag)
-  const clearTags = useExplorerStore((s) => s.clearTags)
-  const toggleFavorite = useExplorerStore((s) => s.toggleFavorite)
-  const setFilterFabOpen = useExplorerStore((s) => s.setFilterFabOpen)
 
   const { ordered } = useFilteredOrdered()
 
@@ -145,6 +126,7 @@ export function IstanbulExplorerApp({
   )
 
   const [zoom, setZoom] = useState(1)
+  const [routeExpanded, setRouteExpanded] = useState(false)
   const onWheel = useCallback((e: React.WheelEvent) => {
     if (!e.ctrlKey && !e.metaKey) return
     e.preventDefault()
@@ -174,7 +156,7 @@ export function IstanbulExplorerApp({
       ro.disconnect()
       window.removeEventListener('resize', read)
     }
-  }, [videoStackHeightPx, zoom])
+  }, [routeExpanded, videoStackHeightPx, zoom])
 
   const routePlateRect = useMemo(
     () => routePlateRectForViewBoxHeight(routeViewBoxH),
@@ -204,9 +186,6 @@ export function IstanbulExplorerApp({
     },
     [hoveredId, ordered]
   )
-
-  const selected = ordered.find((p) => p.id === selectedId) ?? null
-  const selIndex = selected ? ordered.indexOf(selected) : -1
 
   /** Unique SVG defs ids (avoid clashes if multiple roots ever mount). */
   const svgUid = useId().replace(/:/g, '')
@@ -246,8 +225,45 @@ export function IstanbulExplorerApp({
         className="relative z-[1] flex flex-col gap-3 px-0 pt-0 pb-2 sm:gap-4 sm:pb-3 lg:pb-0"
       >
         <div className="min-w-0">
-        {/* Full landmark route map visible on all screen sizes. */}
-        <div className="relative w-full min-h-0 max-w-full overflow-hidden py-1 pr-0 sm:pr-0.5">
+        <div className="relative w-full min-h-0 max-w-full overflow-hidden rounded-[22px] border border-[#2d6a8f]/12 bg-[#fffaf2]/72 shadow-[0_18px_45px_rgba(42,36,28,0.08)] backdrop-blur-sm">
+          <button
+            type="button"
+            onClick={() => setRouteExpanded((open) => !open)}
+            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-white/45 sm:px-5"
+            aria-expanded={routeExpanded}
+            aria-controls="istanbul-landmark-route-panel"
+          >
+            <span className="min-w-0">
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.22em] text-[#2d6a8f]">
+                Istanbul Landmark Route
+              </span>
+              <span className="mt-0.5 block truncate text-[13px] text-[#4f463b]/72">
+                {routeExpanded
+                  ? 'Hide the visual route map'
+                  : 'Open the visual route map for iconic POIs'}
+              </span>
+            </span>
+            <span
+              className={`grid h-8 w-8 flex-shrink-0 place-items-center rounded-full border border-[#2d6a8f]/18 bg-white/70 text-[#2d6a8f] transition-transform duration-300 ${
+                routeExpanded ? 'rotate-180' : ''
+              }`}
+              aria-hidden
+            >
+             ⌄
+            </span>
+          </button>
+
+          <AnimatePresence initial={false}>
+            {routeExpanded && (
+              <motion.div
+                id="istanbul-landmark-route-panel"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                className="overflow-hidden"
+              >
+        <div className="relative w-full min-h-0 max-w-full overflow-hidden border-t border-[#2d6a8f]/10 py-1 pr-0 sm:pr-0.5">
           <div
             ref={routeCanvasRef}
             onWheel={onWheel}
@@ -261,7 +277,7 @@ export function IstanbulExplorerApp({
           >
             <svg
               viewBox={`-70 0 240 ${routeViewBoxH}`}
-              className="absolute inset-0 block h-full w-full overflow-visible"
+              className="absolute inset-0 block h-full w-full overflow-hidden"
               preserveAspectRatio="xMidYMid meet"
               role="img"
               aria-label="Istanbul landmark route map"
@@ -294,6 +310,27 @@ export function IstanbulExplorerApp({
                     values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  -1 -1 -1 0 2.28"
                   />
                 </filter>
+                {ordered.map((p) => {
+                  const pop = p.popularity / 100
+                  const baseR = (3.15 + pop * 2.45) * 1.18
+                  const imgBox = baseR * 3.55
+                  return (
+                    <clipPath
+                      key={`clip-${p.id}`}
+                      id={`${svgUid}-${p.id}-clip`}
+                      clipPathUnits="userSpaceOnUse"
+                    >
+                      <rect
+                        x={-imgBox / 2}
+                        y={-imgBox / 2}
+                        width={imgBox}
+                        height={imgBox}
+                        rx={imgBox * 0.18}
+                        ry={imgBox * 0.18}
+                      />
+                    </clipPath>
+                  )
+                })}
               </defs>
 
               <rect
@@ -339,7 +376,7 @@ export function IstanbulExplorerApp({
                 pointerEvents="none"
               />
 
-              <motion.path
+              <path
                 d={pathD}
                 fill="none"
                 stroke={
@@ -349,16 +386,6 @@ export function IstanbulExplorerApp({
                 strokeLinecap="round"
                 strokeDasharray="5 14"
                 pointerEvents="none"
-                animate={
-                  playback
-                    ? { strokeDashoffset: [0, -380] }
-                    : { strokeDashoffset: 0 }
-                }
-                transition={
-                  playback
-                    ? { duration: 14, ease: 'linear', repeat: Infinity }
-                    : { duration: 0.4 }
-                }
               />
 
               {/* Stops share the path viewBox so icons sit on the thread */}
@@ -414,6 +441,7 @@ export function IstanbulExplorerApp({
                             y={-imgBox / 2}
                             width={imgBox}
                             height={imgBox}
+                            clipPath={`url(#${svgUid}-${p.id}-clip)`}
                             preserveAspectRatio="xMidYMid slice"
                             opacity={active ? 1 : theme === 'night' ? 0.95 : 0.98}
                             style={{
@@ -480,16 +508,13 @@ export function IstanbulExplorerApp({
               })}
             </svg>
 
-            {playback && (
-              <div className="pointer-events-none absolute right-2 top-2 z-[50] sm:right-2.5 sm:top-2.5">
-                <span className="rounded-full border border-emerald-400/35 bg-emerald-500/80 px-2 py-0.5 text-[10px] font-medium text-white shadow-sm">
-                  Playback
-                </span>
-              </div>
-            )}
           </div>
 
 
+        </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         </div>
       </div>
@@ -507,68 +532,6 @@ export function IstanbulExplorerApp({
         matteFilterId={matteId}
       />
 
-      {/* Filters floating */}
-      <AnimatePresence>
-        {filterFabOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 12 }}
-            className="fixed bottom-24 right-5 z-[40] w-[min(92vw,380px)] rounded-3xl border border-white/15 bg-[#0c1520]/92 p-4 shadow-2xl backdrop-blur-2xl lg:hidden"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-[12px] font-semibold text-white">Experience filters</span>
-              <button type="button" className="text-[11px] text-white/55" onClick={() => clearTags()}>
-                Clear
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {TAGS.map((t) => {
-                const on = tagsFilter.has(t.id)
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => toggleTag(t.id)}
-                    className={`rounded-full px-3 py-1.5 text-[12px] font-medium ${
-                      on ? 'bg-white text-[#0c1520]' : 'bg-white/10 text-white/85'
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                )
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <button
-        type="button"
-        onClick={() => setFilterFabOpen(!filterFabOpen)}
-        className="fixed bottom-6 right-5 z-[38] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#2d6a8f] to-[#d97757] text-xl text-white shadow-xl shadow-black/45 lg:hidden"
-        aria-label="Filters"
-      >
-        ◎
-      </button>
-
-      {/* Detail panel */}
-      <AnimatePresence>
-        {selected && (
-          <DetailSheet
-            poi={selected}
-            index={selIndex}
-            ordered={ordered}
-            openDirections={openDirections}
-            onClose={() => {
-              setSelectedId(null)
-              setSheetExpanded(false)
-            }}
-            onFavorite={() => toggleFavorite(selected.id)}
-            favorite={favorites.has(selected.id)}
-          />
-        )}
-      </AnimatePresence>
     </div>
   )
 }
@@ -590,10 +553,7 @@ function MobileInsightRail({
   setSelectedId: (id: string | null) => void
   matteFilterId: string
 }) {
-  const avoidCrowds = useExplorerStore((s) => s.avoidCrowds)
-  const toggleAvoidCrowds = useExplorerStore((s) => s.toggleAvoidCrowds)
-  const playback = useExplorerStore((s) => s.playback)
-  const togglePlayback = useExplorerStore((s) => s.togglePlayback)
+  if (!sheetExpanded) return null
 
   return (
     <motion.div
@@ -611,29 +571,6 @@ function MobileInsightRail({
         aria-label="Expand insights"
       />
       <div className="max-h-[68vh] overflow-y-auto px-4 pb-6 pt-3">
-        <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
-          <button
-            type="button"
-            onClick={toggleAvoidCrowds}
-            className={`flex-shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${
-              avoidCrowds
-                ? 'bg-[#1e3a52] text-white shadow-md'
-                : 'bg-black/10 text-[#2a241c]/85 hover:bg-black/15'
-            }`}
-          >
-            {avoidCrowds ? '✓ Sorting by: Least Crowded' : 'Sort by: Least Crowded'}
-          </button>
-        </div>
-        <button
-          type="button"
-          onClick={togglePlayback}
-          className={`mb-4 w-full rounded-2xl border px-4 py-3 text-left text-[13px] font-medium ${
-            playback ? 'border-emerald-400/40 bg-emerald-500/12 text-emerald-900' : 'border-black/10 bg-white/60'
-          }`}
-        >
-          <span className="block text-[10px] uppercase tracking-wider opacity-60">Route playback</span>
-          {playback ? 'Animating river-like motion along paths' : 'Tap to animate flowing routes'}
-        </button>
         {sheetExpanded && (
           <div className="space-y-4">
             <div>
@@ -672,130 +609,6 @@ function MobileInsightRail({
           </div>
         )}
       </div>
-    </motion.div>
-  )
-}
-
-function DetailSheet({
-  poi,
-  index,
-  ordered,
-  openDirections,
-  onClose,
-  onFavorite,
-  favorite
-}: {
-  poi: ExplorerPOI
-  index: number
-  ordered: ExplorerPOI[]
-  openDirections: (poi: ExplorerPOI) => void
-  onClose: () => void
-  onFavorite: () => void
-  favorite: boolean
-}) {
-  const walk = walkFromPrevious(ordered, index)
-  const crowdLabel =
-    poi.crowdScore >= 75 ? 'Busy' : poi.crowdScore >= 50 ? 'Moderate' : 'Comfortable'
-
-  const share = () => {
-    const url = new URL(window.location.href)
-    url.hash = `explorer=${encodeURIComponent(poi.id)}`
-    void navigator.clipboard.writeText(url.toString()).catch(() => {})
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[50] max-[768px]:z-[1200] flex items-end justify-center bg-black/45 p-4 sm:items-center"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ y: 40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 30, opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-[#121c28]/98 to-[#0a1018]/98 p-6 text-white shadow-2xl backdrop-blur-2xl"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#c4a574]">
-              Stop {index + 1} · {crowdLabel} crowds
-            </p>
-            <h4 className="mt-1 text-2xl font-semibold tracking-tight">{poi.name}</h4>
-            <p className="mt-1 text-[13px] text-white/65">{poi.subtitle}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onFavorite}
-            className={`rounded-full px-3 py-1.5 text-[12px] font-semibold ${
-              favorite ? 'bg-rose-500 text-white' : 'bg-white/10 text-white/85'
-            }`}
-          >
-            {favorite ? 'Saved' : 'Save'}
-          </button>
-        </div>
-
-        <div className="mt-5 grid grid-cols-2 gap-3 text-[13px]">
-          <div className="rounded-2xl bg-white/8 p-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/45">Crowd score</p>
-            <p className="mt-1 text-lg font-semibold">{poi.crowdScore}</p>
-            <p className="text-[11px] text-white/55">Simulated blend · refreshes with picks</p>
-          </div>
-          <div className="rounded-2xl bg-white/8 p-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/45">Weather fit</p>
-            <p className="mt-1 capitalize">{poi.weatherFit.replaceAll('-', ' ')}</p>
-            <p className="text-[11px] text-white/55">{poi.microWeather}</p>
-          </div>
-          <div className="rounded-2xl bg-white/8 p-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/45">Best window</p>
-            <p className="mt-1 leading-snug">{poi.bestWindow}</p>
-          </div>
-          <div className="rounded-2xl bg-white/8 p-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/45">Walk from prev</p>
-            <p className="mt-1 text-lg font-semibold">{walk ? `${walk} min` : 'Start here'}</p>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-2xl bg-black/25 p-3">
-          <p className="text-[10px] uppercase tracking-wider text-white/45">Nearby alternatives</p>
-          <ul className="mt-2 space-y-1 text-[13px] text-white/78">
-            {poi.alternatives.map((a) => (
-              <li key={a}>• {a}</li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="mt-5 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => openDirections(poi)}
-            className="flex-1 rounded-2xl bg-gradient-to-r from-[#2d6a8f] to-[#1e3a52] px-4 py-3 text-[14px] font-semibold text-white shadow-lg shadow-black/35"
-          >
-            Show on live map
-          </button>
-          <button
-            type="button"
-            onClick={share}
-            className="rounded-2xl border border-white/20 px-4 py-3 text-[13px] font-semibold text-white/85"
-          >
-            Copy link
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-2xl border border-white/15 px-4 py-3 text-[13px] text-white/75"
-          >
-            Close
-          </button>
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-dashed border-white/18 bg-white/5 p-3 text-[11px] leading-relaxed text-white/55">
-          Crowd forecast timeline · AI itinerary stitching · analytics widgets ship next — data blends live picks + curated baselines for a believable “live” feel.
-        </div>
-      </motion.div>
     </motion.div>
   )
 }

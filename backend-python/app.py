@@ -176,6 +176,10 @@ def create_app() -> Flask:
     def forecast_periods() -> Any:
         return jsonify(forecast_svc.period_options())
 
+    @app.get("/api/forecast-calendar-periods")
+    def forecast_calendar_periods() -> Any:
+        return jsonify(forecast_svc.calendar_period_options())
+
     @app.post("/api/recommendations")
     def recommendations() -> Any:
         """
